@@ -1,0 +1,533 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Portfolio</h1>
+
+<!-- =======================================================
+     Portfolio Summary
+======================================================= -->
+
+<div class="summary-grid">
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            Invested
+        </div>
+
+        <div class="summary-value">
+            {{ performance.invested | currency }}
+        </div>
+
+    </div>
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            Current Value
+        </div>
+
+        <div class="summary-value">
+            {{ performance.current | currency }}
+        </div>
+
+    </div>
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            Realized P/L
+        </div>
+
+        <div class="summary-value
+            {% if performance.realized_pl > 0 %}
+                profit
+            {% elif performance.realized_pl < 0 %}
+                loss
+            {% endif %}
+        ">
+            {{ performance.realized_pl | currency }}
+        </div>
+
+    </div>
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            Unrealized P/L
+        </div>
+
+        <div class="summary-value
+            {% if performance.unrealized_pl > 0 %}
+                profit
+            {% elif performance.unrealized_pl < 0 %}
+                loss
+            {% endif %}
+        ">
+            {{ performance.unrealized_pl | currency }}
+        </div>
+
+    </div>
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            Total P/L
+        </div>
+
+        <div class="summary-value
+            {% if performance.total_pl > 0 %}
+                profit
+            {% elif performance.total_pl < 0 %}
+                loss
+            {% endif %}
+        ">
+            {{ performance.total_pl | currency }}
+        </div>
+
+    </div>
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            Return
+        </div>
+
+        <div class="summary-value
+            {% if performance.return_pct > 0 %}
+                profit
+            {% elif performance.return_pct < 0 %}
+                loss
+            {% endif %}
+        ">
+            {{ performance.return_pct }}%
+        </div>
+
+    </div>
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            Brokerage
+        </div>
+
+        <div class="summary-value">
+            {{ performance.brokerage | currency }}
+        </div>
+
+    </div>
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            Dividend
+        </div>
+
+        <div class="summary-value">
+            {{ performance.dividend | currency }}
+        </div>
+
+    </div>
+
+</div>
+
+<!-- =======================================================
+     Portfolio Overview
+======================================================= -->
+
+<div class="portfolio-overview">
+
+    <div class="allocation-card">
+
+        <h3>Portfolio Allocation</h3>
+
+        {% if allocation %}
+
+            <canvas id="allocationChart"></canvas>
+
+        {% else %}
+
+            <p>No investments yet.</p>
+
+        {% endif %}
+
+    </div>
+
+    <div class="allocation-card">
+
+        <h3>Top Gainers</h3>
+
+        <table class="portfolio-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>Asset</th>
+                    <th class="number">P/L</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+            {% for asset in top_gainers %}
+
+                <tr>
+
+                    <td>
+
+                        <strong>{{ asset.symbol }}</strong>
+
+                        <br>
+
+                        <small>{{ asset.name }}</small>
+
+                    </td>
+
+                    <td class="number profit">
+
+                        {{ asset.unrealized_pl | currency }}
+
+                        <br>
+
+                        <small>
+
+                            {% if asset.invested > 0 %}
+
+                                {{ (
+                                    (asset.unrealized_pl / asset.invested)
+                                    * 100
+                                ) | round(2) }}%
+
+                            {% else %}
+
+                                0%
+
+                            {% endif %}
+
+                        </small>
+
+                    </td>
+
+                </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    <div class="allocation-card">
+
+        <h3>Top Losers</h3>
+
+        <table class="portfolio-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>Asset</th>
+                    <th class="number">P/L</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+            {% for asset in top_losers %}
+
+                <tr>
+
+                    <td>
+
+                        <strong>{{ asset.symbol }}</strong>
+
+                        <br>
+
+                        <small>{{ asset.name }}</small>
+
+                    </td>
+
+                    <td class="number loss">
+
+                        {{ asset.unrealized_pl | currency }}
+
+                        <br>
+
+                        <small>
+
+                            {% if asset.invested > 0 %}
+
+                                {{ (
+                                    (asset.unrealized_pl / asset.invested)
+                                    * 100
+                                ) | round(2) }}%
+
+                            {% else %}
+
+                                0%
+
+                            {% endif %}
+
+                        </small>
+
+                    </td>
+
+                </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<!-- =======================================================
+     Holdings
+======================================================= -->
+
+<div class="table-container">
+
+    <table class="portfolio-table portfolio-page-table">
+
+        <thead>
+
+            <tr>
+
+                <th>Asset</th>
+                <th>Type</th>
+                <th class="number">Qty</th>
+                <th class="number">Avg Price</th>
+                <th class="number">Current Price</th>
+                <th class="number">Invested</th>
+                <th class="number">Current Value</th>
+                <th class="number">Allocation</th>
+                <th class="number">Unrealized P/L</th>
+                <th class="number">Brokerage</th>
+                <th class="number">Dividend</th>
+                <th class="number">Bonus</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+        {% for asset in assets %}
+
+            <tr>
+
+                <td>
+
+                    <a
+                        href="/portfolio/{{ asset.asset_id }}"
+                        class="asset-pill"
+                    >
+
+                        <div>
+
+                            {{ asset.name }}
+
+                            <span class="asset-symbol">
+                                {{ asset.symbol }}
+                            </span>
+
+                        </div>
+
+                    </a>
+
+                </td>
+
+                <td>
+
+                    <span
+                        class="type-badge {{ asset.type | lower | replace(' ', '-') }}"
+                    >
+                        {{ asset.type }}
+                    </span>
+
+                </td>
+
+                <td class="number">
+                    {{ asset.qty }}
+                </td>
+
+                <td class="number">
+                    {{ asset.avg | currency }}
+                </td>
+
+                <td class="number">
+                    {{ asset.current_price | currency }}
+                </td>
+
+                <td class="number">
+                    {{ asset.invested | currency }}
+                </td>
+
+                <td class="number">
+                    {{ asset.current | currency }}
+                </td>
+
+                <td class="number">
+                    {{ asset.allocation | round(2) }}%
+                </td>
+
+                <td class="number
+                    {% if asset.unrealized_pl > 0 %}
+                        profit
+                    {% elif asset.unrealized_pl < 0 %}
+                        loss
+                    {% endif %}
+                ">
+
+                    {{ asset.unrealized_pl | currency }}
+
+                </td>
+
+                <td class="number">
+                    {{ asset.brokerage | currency }}
+                </td>
+
+                <td class="number">
+                    {{ asset.dividend | currency }}
+                </td>
+
+                <td class="number">
+                    {{ asset.bonus }}
+                </td>
+
+            </tr>
+
+        {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+<!-- =======================================================
+     Allocation Chart
+======================================================= -->
+
+{% if allocation %}
+
+<script>
+
+const allocationData = {{ allocation | tojson }};
+
+const labels = allocationData.map(
+    a => a.symbol
+);
+
+const values = allocationData.map(
+    a => a.allocation
+);
+
+const marketValues = allocationData.map(
+    a => a.value
+);
+
+const colors = [
+    "#2563eb",
+    "#10b981",
+    "#f59e0b",
+    "#ef4444",
+    "#8b5cf6",
+    "#06b6d4",
+    "#84cc16",
+    "#f97316",
+    "#ec4899",
+    "#14b8a6",
+    "#6366f1",
+    "#a855f7"
+];
+
+const ctx = document
+    .getElementById("allocationChart")
+    .getContext("2d");
+
+new Chart(ctx, {
+
+    type: "doughnut",
+
+    data: {
+
+        labels: labels,
+
+        datasets: [
+
+            {
+
+                data: values,
+
+                backgroundColor: colors,
+
+                borderColor: "#ffffff",
+
+                borderWidth: 2
+
+            }
+
+        ]
+
+    },
+
+    options: {
+
+        responsive: true,
+
+        plugins: {
+
+            legend: {
+
+                position: "bottom"
+
+            },
+
+            tooltip: {
+
+                callbacks: {
+
+                    label(context) {
+
+                        const index =
+                            context.dataIndex;
+
+                        return (
+                            labels[index] +
+                            " : " +
+                            values[index].toFixed(2) +
+                            "% (₹" +
+                            marketValues[index]
+                                .toLocaleString("en-IN") +
+                            ")"
+                        );
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
+});
+
+</script>
+
+{% endif %}
+
+{% endblock %}

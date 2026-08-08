@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Transactions</h1>
+
+<div class="table-container transactions-container">
+
+    <table class="portfolio-table transactions-table">
+
+        <thead>
+
+            <tr>
+
+                <th class="col-date">Date</th>
+                <th class="col-asset">Asset</th>
+                <th class="col-type">Type</th>
+                <th class="col-transaction">Transaction</th>
+                <th class="number col-qty">Qty</th>
+                <th class="number col-price">Price</th>
+                <th class="number col-brokerage">Brokerage</th>
+                <th class="actions-col"></th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            {% for tx in transactions %}
+
+            <tr>
+
+                <td>
+                    {{ tx.transaction_date | format_date }}
+                </td>
+
+                <td>
+
+                    <div class="transaction-asset-name">
+                        {{ tx.asset_name or tx.asset }}
+                    </div>
+
+                    {% if tx.asset_name %}
+                    <div class="transaction-asset-symbol">
+                        {{ tx.asset }}
+                    </div>
+                    {% endif %}
+
+                </td>
+
+                <td>
+
+                    <span class="type-badge {{ tx.asset_type | lower | replace(' ', '-') }}">
+                        {{ tx.asset_type }}
+                    </span>
+
+                </td>
+
+                <td>
+
+                    <span class="{{ 'buy-text' if tx.transaction_type == 'BUY' else 'sell-text' }}">
+                        {{ tx.transaction_type }}
+                    </span>
+
+                </td>
+
+                <td class="number">
+                    {{ tx.quantity }}
+                </td>
+
+                <td class="number">
+                    {{ tx.price | currency }}
+                </td>
+
+                <td class="number">
+                    {{ tx.brokerage | currency }}
+                </td>
+
+                <td class="actions-cell">
+
+                    <div class="action-menu">
+
+                        <button
+                            type="button"
+                            class="menu-btn"
+                        >
+                            ⋮
+                        </button>
+
+                        <div class="menu-content">
+
+                            <a href="/edit-transaction/{{ tx.id }}">
+                                ✏ Edit
+                            </a>
+
+                            <a
+                                href="/delete-transaction/{{ tx.id }}"
+                                onclick="return confirm('Delete this transaction?');"
+                            >
+                                🗑 Delete
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+{% endblock %}

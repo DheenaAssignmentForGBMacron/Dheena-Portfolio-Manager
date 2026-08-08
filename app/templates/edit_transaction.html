@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Edit Transaction</h1>
+
+{% if error_message %}
+
+<div
+    id="errorModal"
+    class="modal"
+    role="dialog"
+>
+
+    <div class="modal-content">
+
+        <h3>Transaction Failed</h3>
+
+        <p>{{ error_message }}</p>
+
+        <button
+            type="button"
+            class="primary-btn"
+            onclick="closeModal()"
+        >
+            OK
+        </button>
+
+    </div>
+
+</div>
+
+{% endif %}
+
+<div class="transaction-form-card">
+
+    <form method="POST">
+
+        <label>Asset</label>
+
+        <div class="autocomplete">
+
+            <input
+                type="text"
+                id="asset-search"
+                name="asset"
+                value="{{ tx.asset }}"
+                autocomplete="off"
+                required
+            >
+
+            <input
+                type="hidden"
+                id="asset-id"
+                name="asset_id"
+                value="{{ tx.asset_id }}"
+            >
+
+            <div
+                id="asset-results"
+                class="autocomplete-results"
+            ></div>
+
+        </div>
+
+        <label>Asset Type</label>
+
+        <select name="asset_type">
+
+            <option
+                value="Stock"
+                {% if tx.asset_type == "Stock" %}selected{% endif %}
+            >
+                Stock
+            </option>
+
+            <option
+                value="ETF"
+                {% if tx.asset_type == "ETF" %}selected{% endif %}
+            >
+                ETF
+            </option>
+
+            <option
+                value="Mutual Fund"
+                {% if tx.asset_type == "Mutual Fund" %}selected{% endif %}
+            >
+                Mutual Fund
+            </option>
+
+        </select>
+
+        <label>Transaction</label>
+
+        <select name="transaction_type">
+
+            <option
+                value="BUY"
+                {% if tx.transaction_type == "BUY" %}selected{% endif %}
+            >
+                BUY
+            </option>
+
+            <option
+                value="SELL"
+                {% if tx.transaction_type == "SELL" %}selected{% endif %}
+            >
+                SELL
+            </option>
+
+        </select>
+
+        <label>Quantity</label>
+
+        <input
+            type="number"
+            name="quantity"
+            min="1"
+            step="1"
+            value="{{ tx.quantity }}"
+            required
+        >
+
+        <label>Price</label>
+
+        <input
+            type="number"
+            name="price"
+            min="0"
+            step="0.01"
+            value="{{ tx.price }}"
+            required
+        >
+
+        <label>Brokerage</label>
+
+        <input
+            type="number"
+            name="brokerage"
+            min="0"
+            step="0.01"
+            value="{{ tx.brokerage }}"
+        >
+
+        <label>Date</label>
+
+        <input
+            type="date"
+            name="transaction_date"
+            value="{{ tx.transaction_date }}"
+            required
+        >
+
+        <label>Notes</label>
+
+        <textarea
+            name="notes"
+            rows="4"
+            placeholder="Optional notes..."
+        >{{ tx.notes or "" }}</textarea>
+
+        <button
+            type="submit"
+            class="primary-btn"
+        >
+            Update Transaction
+        </button>
+
+    </form>
+
+</div>
+
+{% endblock %}

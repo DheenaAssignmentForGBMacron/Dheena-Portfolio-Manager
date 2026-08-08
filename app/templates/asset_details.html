@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div>
+
+    <h1>{{ holding.symbol }}</h1>
+
+    <p>{{ holding.name }}</p>
+
+    <div class="page-subtitle">
+
+        <span class="type-badge {{ holding.asset_class | lower | replace(' ', '-') }}">
+
+            {{ holding.asset_class }}
+
+        </span>
+
+    </div>
+
+</div>
+
+
+<a
+    href="/portfolio"
+    class="primary-btn"
+>
+    ← Back to Portfolio
+</a>
+
+
+<!-- =====================================================
+     Position Summary
+     ===================================================== -->
+
+<div class="summary-card">
+
+    <div class="summary-title">
+        Invested
+    </div>
+
+    <div class="summary-value">
+        {{ holding.invested | currency }}
+    </div>
+
+</div>
+
+<div class="summary-card">
+
+    <div class="summary-title">
+        Current Value
+    </div>
+
+    <div class="summary-value">
+        {{ holding.current | currency }}
+    </div>
+
+</div>
+
+<div class="summary-card">
+
+    <div class="summary-title">
+        Quantity
+    </div>
+
+    <div class="summary-value">
+        {{ holding.qty }}
+    </div>
+
+</div>
+
+<div class="summary-card">
+
+    <div class="summary-title">
+        Average Price
+    </div>
+
+    <div class="summary-value">
+        {{ holding.avg | currency }}
+    </div>
+
+</div>
+
+<div class="summary-card">
+
+    <div class="summary-title">
+        Current Price
+    </div>
+
+    <div class="summary-value">
+        {{ holding.current_price | currency }}
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     Profit & Loss
+     ===================================================== -->
+
+<div class="summary-card">
+
+    <div class="summary-title">
+        Realized P/L
+    </div>
+
+    <div class="summary-value
+        {% if holding.realized_pl > 0 %}
+            profit
+        {% elif holding.realized_pl < 0 %}
+            loss
+        {% endif %}
+    ">
+
+        {{ holding.realized_pl | currency }}
+
+    </div>
+
+</div>
+
+<div class="summary-card">
+
+    <div class="summary-title">
+        Unrealized P/L
+    </div>
+
+    <div class="summary-value
+        {% if holding.unrealized_pl > 0 %}
+            profit
+        {% elif holding.unrealized_pl < 0 %}
+            loss
+        {% endif %}
+    ">
+
+        {{ holding.unrealized_pl | currency }}
+
+    </div>
+
+</div>
+
+<div class="summary-card">
+
+    <div class="summary-title">
+        Total P/L
+    </div>
+
+    <div class="summary-value
+        {% if holding.total_pl > 0 %}
+            profit
+        {% elif holding.total_pl < 0 %}
+            loss
+        {% endif %}
+    ">
+
+        {{ holding.total_pl | currency }}
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     Additional Information
+     ===================================================== -->
+
+<div class="summary-card">
+
+    <div class="summary-title">
+        Brokerage
+    </div>
+
+    <div class="summary-value">
+        {{ holding.brokerage | currency }}
+    </div>
+
+</div>
+
+<div class="summary-card">
+
+    <div class="summary-title">
+        Dividend
+    </div>
+
+    <div class="summary-value">
+        {{ holding.dividend | currency }}
+    </div>
+
+</div>
+
+<div class="summary-card">
+
+    <div class="summary-title">
+        Bonus
+    </div>
+
+    <div class="summary-value">
+        {{ holding.bonus }}
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     Transactions
+     ===================================================== -->
+
+<table class="portfolio-table">
+
+    <thead>
+
+        <tr>
+
+            <th>Date</th>
+            <th>Type</th>
+            <th class="number">Qty</th>
+            <th class="number">Price</th>
+            <th class="number">Brokerage</th>
+            <th>Notes</th>
+
+        </tr>
+
+    </thead>
+
+    <tbody>
+
+    {% for tx in transactions %}
+
+        <tr>
+
+            <td>
+                {{ tx.transaction_date | format_date }}
+            </td>
+
+            <td>
+
+                <span
+                    class="type-badge
+                    {% if tx.transaction_type == 'BUY' %}
+                        stock
+                    {% elif tx.transaction_type == 'SELL' %}
+                        loss
+                    {% elif tx.transaction_type == 'DIVIDEND' %}
+                        profit
+                    {% else %}
+                        stock
+                    {% endif %}
+                ">
+
+                    {{ tx.transaction_type }}
+
+                </span>
+
+            </td>
+
+            <td class="number">
+                {{ tx.quantity }}
+            </td>
+
+            <td class="number">
+                {{ tx.price | currency }}
+            </td>
+
+            <td class="number">
+                {{ tx.brokerage | currency }}
+            </td>
+
+            <td>
+                {{ tx.notes or "-" }}
+            </td>
+
+        </tr>
+
+    {% endfor %}
+
+    </tbody>
+
+</table>
+
+{% endblock %}

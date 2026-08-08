@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="page-header">
+
+    <div>
+
+        <h1>Assets</h1>
+
+        <p>
+            Manage all tradable instruments used in your portfolio.
+        </p>
+
+    </div>
+
+    <a
+        href="/add-asset"
+        class="primary-btn"
+    >
+        + Add Asset
+    </a>
+
+</div>
+
+<!-- ======================================================
+     Summary Cards
+====================================================== -->
+
+<div class="summary-grid">
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            Assets
+        </div>
+
+        <div class="summary-value">
+            {{ summary.assets }}
+        </div>
+
+    </div>
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            Stocks
+        </div>
+
+        <div class="summary-value">
+            {{ summary.stocks }}
+        </div>
+
+    </div>
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            ETFs
+        </div>
+
+        <div class="summary-value">
+            {{ summary.etfs }}
+        </div>
+
+    </div>
+
+    <div class="summary-card">
+
+        <div class="summary-title">
+            Mutual Funds
+        </div>
+
+        <div class="summary-value">
+            {{ summary.mutual_funds }}
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ======================================================
+     Search
+====================================================== -->
+
+<div class="assets-search">
+
+    <input
+        type="text"
+        id="assetFilter"
+        placeholder="🔍 Search by symbol or company name..."
+    >
+
+</div>
+
+<!-- ======================================================
+     Assets Table
+====================================================== -->
+
+<div class="table-container">
+
+    <table class="portfolio-table">
+
+        <thead>
+
+            <tr>
+
+                <th>Symbol</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Exchange</th>
+                <th>Available</th>
+                <th class="number">Holdings</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody id="assetTable">
+
+            {% for asset in assets %}
+
+                <tr>
+
+                    <td>
+                        <strong>{{ asset.symbol }}</strong>
+                    </td>
+
+                    <td>
+                        {{ asset.name }}
+                    </td>
+
+                    <td>
+
+                        <span class="type-badge {{ asset.asset_class | lower | replace(' ', '-') }}">
+
+                            {{ asset.asset_class }}
+
+                        </span>
+
+                    </td>
+
+                    <td>
+                        {{ asset.exchange }}
+                    </td>
+
+                    <td>
+
+                        {% if asset.holdings > 0 %}
+
+                            <span class="type-badge stock">
+                                Available
+                            </span>
+
+                        {% else %}
+
+                            <span class="type-badge">
+                                Not Held
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+                    <td class="number">
+
+                        {% if asset.holdings > 0 %}
+                            {{ asset.holdings }}
+                        {% else %}
+                            0
+                        {% endif %}
+
+                    </td>
+
+                </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+    </table>
+
+</div>
+
+{% endblock %}

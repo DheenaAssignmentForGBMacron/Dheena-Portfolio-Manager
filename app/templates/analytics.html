@@ -1,0 +1,634 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Portfolio Analytics</h1>
+
+<!-- =======================================================
+     Performance Summary
+======================================================= -->
+
+<div class="summary-grid">
+
+    <div class="summary-card">
+        <div class="summary-title">
+            Invested
+        </div>
+        <div class="summary-value">
+            {{ performance.invested | currency }}
+        </div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-title">
+            Current Value
+        </div>
+        <div class="summary-value">
+            {{ performance.current | currency }}
+        </div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-title">
+            Realized P/L
+        </div>
+        <div class="summary-value
+            {% if performance.realized_pl > 0 %}
+                profit
+            {% elif performance.realized_pl < 0 %}
+                loss
+            {% endif %}
+        ">
+            {{ performance.realized_pl | currency }}
+        </div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-title">
+            Unrealized P/L
+        </div>
+        <div class="summary-value
+            {% if performance.unrealized_pl > 0 %}
+                profit
+            {% elif performance.unrealized_pl < 0 %}
+                loss
+            {% endif %}
+        ">
+            {{ performance.unrealized_pl | currency }}
+        </div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-title">
+            Total P/L
+        </div>
+        <div class="summary-value
+            {% if performance.total_pl > 0 %}
+                profit
+            {% elif performance.total_pl < 0 %}
+                loss
+            {% endif %}
+        ">
+            {{ performance.total_pl | currency }}
+        </div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-title">
+            Return
+        </div>
+        <div class="summary-value
+            {% if performance.return_pct > 0 %}
+                profit
+            {% elif performance.return_pct < 0 %}
+                loss
+            {% endif %}
+        ">
+            {{ performance.return_pct }}%
+        </div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-title">
+            Brokerage
+        </div>
+        <div class="summary-value">
+            {{ performance.brokerage | currency }}
+        </div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-title">
+            Dividend
+        </div>
+        <div class="summary-value">
+            {{ performance.dividend | currency }}
+        </div>
+    </div>
+
+</div>
+<!-- =======================================================
+     Charts
+======================================================= -->
+
+<div class="portfolio-overview">
+
+    <div class="allocation-card">
+
+        <h3>Asset Class Distribution</h3>
+
+        {% if asset_class_distribution %}
+            <canvas id="assetClassChart"></canvas>
+        {% else %}
+            <p>No data available.</p>
+        {% endif %}
+
+    </div>
+
+    <div class="allocation-card">
+
+        <h3>Top Gainers</h3>
+
+        <table class="portfolio-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>Asset</th>
+
+                    <th class="number">P/L</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+            {% for asset in top_gainers %}
+
+                <tr>
+
+                    <td>
+
+                        <strong>{{ asset.symbol }}</strong>
+
+                        <br>
+
+                        <small>{{ asset.name }}</small>
+
+                    </td>
+
+                    <td class="number profit">
+
+                        {{ asset.unrealized_pl | currency }}
+
+                        <br>
+
+                        <small>
+
+                            {% if asset.invested > 0 %}
+                                {{ ((asset.unrealized_pl / asset.invested) * 100) | round(2) }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+
+                        </small>
+
+                    </td>
+
+                </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    <div class="allocation-card">
+
+        <h3>Top Losers</h3>
+
+        <table class="portfolio-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>Asset</th>
+
+                    <th class="number">P/L</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+            {% for asset in top_losers %}
+
+                <tr>
+
+                    <td>
+
+                        <strong>{{ asset.symbol }}</strong>
+
+                        <br>
+
+                        <small>{{ asset.name }}</small>
+
+                    </td>
+
+                    <td class="number loss">
+
+                        {{ asset.unrealized_pl | currency }}
+
+                        <br>
+
+                        <small>
+
+                            {% if asset.invested > 0 %}
+                                {{ ((asset.unrealized_pl / asset.invested) * 100) | round(2) }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+
+                        </small>
+
+                    </td>
+
+                </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<!-- =======================================================
+     Additional Analytics
+======================================================= -->
+
+<div class="portfolio-overview">
+
+    <div class="allocation-card">
+
+        <h3>Monthly Investments</h3>
+
+        {% if monthly_investments %}
+
+            <canvas id="monthlyInvestmentChart"></canvas>
+
+        {% else %}
+
+            <p>No investment history available.</p>
+
+        {% endif %}
+
+    </div>
+
+    <div class="allocation-card">
+
+        <h3>Cash Flow</h3>
+
+        {% if cashflow %}
+
+            <canvas id="cashFlowChart"></canvas>
+
+        {% else %}
+
+            <p>No cash flow available.</p>
+
+        {% endif %}
+
+    </div>
+
+    <div class="allocation-card">
+
+        <h3>Portfolio Growth</h3>
+
+        {% if portfolio_growth %}
+
+            <canvas id="portfolioGrowthChart"></canvas>
+
+        {% else %}
+
+            <p>No growth history available.</p>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+<script>
+
+{% if asset_class_distribution %}
+
+const assetClassData = {{ asset_class_distribution | tojson }};
+
+const assetLabels = Object.keys(assetClassData);
+
+const assetValues = Object.values(assetClassData);
+
+const colors = [
+    "#2563eb",
+    "#10b981",
+    "#f59e0b",
+    "#ef4444",
+    "#8b5cf6",
+    "#06b6d4",
+    "#84cc16",
+    "#f97316",
+    "#ec4899",
+    "#14b8a6",
+    "#6366f1",
+    "#a855f7"
+];
+
+new Chart(
+
+    document.getElementById("assetClassChart"),
+
+    {
+
+        type: "doughnut",
+
+        data: {
+
+            labels: assetLabels,
+
+            datasets: [
+
+                {
+
+                    data: assetValues,
+
+                    backgroundColor: colors,
+
+                    borderColor: "#ffffff",
+
+                    borderWidth: 2
+
+                }
+
+            ]
+
+        },
+
+        options: {
+
+            responsive: true,
+
+            plugins: {
+
+                legend: {
+
+                    position: "bottom"
+
+                },
+
+                tooltip: {
+
+                    callbacks: {
+
+                        label(context) {
+
+                            return (
+                                context.label +
+                                " : ₹" +
+                                context.raw.toLocaleString("en-IN")
+                            );
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
+);
+
+{% endif %}
+
+
+{% if monthly_investments %}
+
+const investmentData = {{ monthly_investments | tojson }};
+
+new Chart(
+
+    document.getElementById("monthlyInvestmentChart"),
+
+    {
+
+        type: "line",
+
+        data: {
+
+            labels: investmentData.map(i => i.month),
+
+            datasets: [
+
+                {
+
+                    label: "Investment",
+
+                    data: investmentData.map(i => i.amount),
+
+                    borderColor: "#2563eb",
+
+                    backgroundColor: "rgba(37,99,235,.15)",
+
+                    fill: true,
+
+                    tension: 0.35
+
+                }
+
+            ]
+
+        },
+
+        options: {
+
+            responsive: true,
+
+            plugins: {
+
+                legend: {
+
+                    display: false
+
+                }
+
+            },
+
+            scales: {
+
+                y: {
+
+                    beginAtZero: true
+
+                }
+
+            }
+
+        }
+
+    }
+
+);
+
+{% endif %}
+
+
+{% if cashflow %}
+
+const cashflowData = {{ cashflow | tojson }};
+
+new Chart(
+
+    document.getElementById("cashFlowChart"),
+
+    {
+
+        type: "bar",
+
+        data: {
+
+            labels: cashflowData.map(c => c.month),
+
+            datasets: [
+
+                {
+
+                    label: "Buy",
+
+                    data: cashflowData.map(c => c.buy),
+
+                    backgroundColor: "#ef4444"
+
+                },
+
+                {
+
+                    label: "Sell",
+
+                    data: cashflowData.map(c => c.sell),
+
+                    backgroundColor: "#10b981"
+
+                },
+
+                {
+
+                    label: "Dividend",
+
+                    data: cashflowData.map(c => c.dividend),
+
+                    backgroundColor: "#3b82f6"
+
+                }
+
+            ]
+
+        },
+
+        options: {
+
+            responsive: true,
+
+            plugins: {
+
+                legend: {
+
+                    position: "bottom"
+
+                }
+
+            },
+
+            scales: {
+
+                y: {
+
+                    beginAtZero: true
+
+                }
+
+            }
+
+        }
+
+    }
+
+);
+
+{% endif %}
+
+
+{% if portfolio_growth %}
+
+const growthData = {{ portfolio_growth | tojson }};
+
+new Chart(
+
+    document.getElementById("portfolioGrowthChart"),
+
+    {
+
+        type: "line",
+
+        data: {
+
+            labels: growthData.map(g => g.month),
+
+            datasets: [
+
+                {
+
+                    label: "Cumulative Investment",
+
+                    data: growthData.map(g => g.value),
+
+                    borderColor: "#8b5cf6",
+
+                    backgroundColor: "rgba(139,92,246,.15)",
+
+                    fill: true,
+
+                    tension: 0.35
+
+                }
+
+            ]
+
+        },
+
+        options: {
+
+            responsive: true,
+
+            plugins: {
+
+                legend: {
+
+                    display: false
+
+                }
+
+            },
+
+            scales: {
+
+                y: {
+
+                    beginAtZero: true
+
+                }
+
+            }
+
+        }
+
+    }
+
+);
+
+{% endif %}
+
+</script>
+
+{% endblock %}
