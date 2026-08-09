@@ -40,7 +40,7 @@ class HoldingFIFOTests(unittest.TestCase):
         holding.sell(4, 300)
 
         # First 2 shares from ₹100 lot, then 2 from ₹200 lot.
-        self.assertAlmostEqual(holding.realized_pl, 800.0)
+        self.assertAlmostEqual(holding.realized_pl, 600.0)
         self.assertAlmostEqual(holding.qty, 1.0)
         self.assertAlmostEqual(holding.invested, 200.0)
         self.assertAlmostEqual(holding.avg, 200.0)

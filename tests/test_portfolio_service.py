@@ -65,7 +65,11 @@ class GetHoldingTests(unittest.TestCase):
         self.conn.close()
 
     def test_get_holding_resolves_by_asset_id(self):
-        with patch("app.services.portfolio_engine.get_connection", return_value=self.conn):
+
+        with patch(
+            "app.repositories.transaction_repository.get_connection",
+            return_value=self.conn,
+        ):
             holding = portfolio_service.get_holding(1)
 
         self.assertIsNotNone(holding)

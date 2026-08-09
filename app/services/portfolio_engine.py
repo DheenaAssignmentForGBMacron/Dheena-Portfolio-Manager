@@ -1,5 +1,7 @@
-from app.database import get_connection
 from app.models.holding import Holding
+from app.repositories.transaction_repository import (
+    get_transactions_with_assets,
+)
 from app.services.price_service import get_price
 
 
@@ -30,30 +32,18 @@ class PortfolioEngine:
         }
 
     # =====================================================
-    # Database
+    # Repository
     # =====================================================
 
     def _load_transactions(self):
+        """
+        Load portfolio transactions through the repository.
 
-        conn = get_connection()
+        PortfolioEngine is responsible for portfolio calculations,
+        not database access.
+        """
 
-        rows = conn.execute("""
-            SELECT
-                t.*,
-                a.symbol,
-                a.name,
-                a.asset_class
-            FROM transactions t
-            JOIN assets a
-                ON t.asset_id = a.id
-            ORDER BY
-                t.transaction_date,
-                t.id
-        """).fetchall()
-
-        conn.close()
-
-        return rows
+        return get_transactions_with_assets()
 
     # =====================================================
     # Holdings
