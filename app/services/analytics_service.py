@@ -3,6 +3,7 @@ from datetime import datetime
 
 from app.services.portfolio_service import get_portfolio
 from app.services.transaction_service import get_transactions
+from app.services.snapshot_service import get_snapshots
 
 
 # =====================================================
@@ -19,17 +20,44 @@ def get_portfolio_analytics():
     return {
         "summary": summary,
         "holdings": holdings,
-        "allocation": _build_allocation(holdings),
-        "asset_class_distribution": _build_asset_class_distribution(
+
+        "allocation": _build_allocation(
             holdings
         ),
-        "top_gainers": _build_top_gainers(holdings),
-        "top_losers": _build_top_losers(holdings),
-        "portfolio_insights": _build_portfolio_insights(holdings),
-        "performance": _build_performance(summary),
-        "monthly_investments": _build_monthly_investments(),
+
+        "asset_class_distribution": (
+            _build_asset_class_distribution(
+                holdings
+            )
+        ),
+
+        "top_gainers": _build_top_gainers(
+            holdings
+        ),
+
+        "top_losers": _build_top_losers(
+            holdings
+        ),
+
+        "portfolio_insights": (
+            _build_portfolio_insights(
+                holdings
+            )
+        ),
+
+        "performance": _build_performance(
+            summary
+        ),
+
+        "monthly_investments": (
+            _build_monthly_investments()
+        ),
+
         "cashflow": _build_cashflow(),
-        "portfolio_growth": _build_portfolio_growth(),
+
+        "portfolio_growth": (
+            _build_portfolio_growth()
+        ),
     }
 
 
@@ -41,17 +69,18 @@ def _build_allocation(holdings):
 
     allocation = [
         {
-            "symbol": h["symbol"],
-            "name": h["name"],
-            "value": h["current"],
-            "allocation": h["allocation"],
+            "symbol": holding["symbol"],
+            "name": holding["name"],
+            "value": holding["current"],
+            "allocation": holding["allocation"],
         }
-        for h in holdings
+        for holding in holdings
+        if holding["current"] > 0
     ]
 
     return sorted(
         allocation,
-        key=lambda x: x["value"],
+        key=lambda item: item["value"],
         reverse=True,
     )
 
@@ -66,12 +95,16 @@ def _build_asset_class_distribution(holdings):
 
     for holding in holdings:
 
+        asset_type = holding["type"]
+
         distribution.setdefault(
-            holding["type"],
+            asset_type,
             0,
         )
 
-        distribution[holding["type"]] += holding["current"]
+        distribution[asset_type] += (
+            holding["current"]
+        )
 
     return distribution
 
@@ -88,7 +121,7 @@ def _build_top_gainers(holdings):
             for holding in holdings
             if holding["unrealized_pl"] > 0
         ],
-        key=lambda x: x["unrealized_pl"],
+        key=lambda item: item["unrealized_pl"],
         reverse=True,
     )[:5]
 
@@ -105,7 +138,7 @@ def _build_top_losers(holdings):
             for holding in holdings
             if holding["unrealized_pl"] < 0
         ],
-        key=lambda x: x["unrealized_pl"],
+        key=lambda item: item["unrealized_pl"],
     )[:5]
 
 
@@ -128,35 +161,61 @@ def _build_portfolio_insights(holdings):
             "mutual_fund_count": 0,
         }
 
+    active_holdings = [
+        holding
+        for holding in holdings
+        if holding["qty"] > 0
+    ]
+
     return {
-        "largest_holding": max(
-            holdings,
-            key=lambda x: x["current"],
+        "largest_holding": (
+            max(
+                active_holdings,
+                key=lambda item: item["current"],
+            )
+            if active_holdings
+            else None
         ),
+
         "best_performer": max(
             holdings,
-            key=lambda x: x["unrealized_pl"],
+            key=lambda item: item["unrealized_pl"],
         ),
+
         "worst_performer": min(
             holdings,
-            key=lambda x: x["unrealized_pl"],
+            key=lambda item: item["unrealized_pl"],
         ),
-        "highest_allocation": max(
-            holdings,
-            key=lambda x: x["allocation"],
+
+        "highest_allocation": (
+            max(
+                active_holdings,
+                key=lambda item: item["allocation"],
+            )
+            if active_holdings
+            else None
         ),
-        "total_holdings": len(holdings),
+
+        "total_holdings": len(
+            active_holdings
+        ),
+
         "stock_count": sum(
-            1 for h in holdings
-            if h["type"] == "Stock"
+            1
+            for holding in active_holdings
+            if holding["type"] == "Stock"
         ),
+
         "etf_count": sum(
-            1 for h in holdings
-            if h["type"] == "ETF"
+            1
+            for holding in active_holdings
+            if holding["type"] == "ETF"
         ),
+
         "mutual_fund_count": sum(
-            1 for h in holdings
-            if h["type"] == "Mutual Fund"
+            1
+            for holding in active_holdings
+            if holding["type"] == "Mutual Fund"
         ),
     }
 
@@ -193,30 +252,40 @@ def _build_monthly_investments():
 
     monthly = OrderedDict()
 
-    for tx in sorted(
+    for transaction in sorted(
         transactions,
-        key=lambda x: x["transaction_date"],
+        key=lambda item: item["transaction_date"],
     ):
 
-        if tx["transaction_type"] != "BUY":
+        if transaction["transaction_type"] != "BUY":
             continue
 
         month = datetime.strptime(
-            tx["transaction_date"],
+            transaction["transaction_date"],
             "%Y-%m-%d",
         ).strftime("%b %Y")
 
         amount = (
-            tx["quantity"] * tx["price"]
-        ) + tx["brokerage"]
+            transaction["quantity"]
+            * transaction["price"]
+        ) + (
+            transaction["brokerage"] or 0
+        )
 
-        monthly.setdefault(month, 0)
+        monthly.setdefault(
+            month,
+            0,
+        )
+
         monthly[month] += amount
 
     return [
         {
             "month": month,
-            "amount": round(value, 2),
+            "amount": round(
+                value,
+                2,
+            ),
         }
         for month, value in monthly.items()
     ]
@@ -232,13 +301,13 @@ def _build_cashflow():
 
     monthly = OrderedDict()
 
-    for tx in sorted(
+    for transaction in sorted(
         transactions,
-        key=lambda x: x["transaction_date"],
+        key=lambda item: item["transaction_date"],
     ):
 
         month = datetime.strptime(
-            tx["transaction_date"],
+            transaction["transaction_date"],
             "%Y-%m-%d",
         ).strftime("%b %Y")
 
@@ -251,28 +320,62 @@ def _build_cashflow():
             },
         )
 
-        amount = (
-            tx["quantity"] * tx["price"]
-        ) + tx["brokerage"]
+        quantity = (
+            transaction["quantity"] or 0
+        )
 
-        if tx["transaction_type"] == "BUY":
+        price = (
+            transaction["price"] or 0
+        )
 
-            monthly[month]["buy"] += amount
+        brokerage = (
+            transaction["brokerage"] or 0
+        )
 
-        elif tx["transaction_type"] == "SELL":
+        amount = quantity * price
 
-            monthly[month]["sell"] += amount
+        transaction_type = (
+            transaction["transaction_type"]
+        )
 
-        elif tx["transaction_type"] == "DIVIDEND":
+        if transaction_type == "BUY":
 
-            monthly[month]["dividend"] += amount
+            monthly[month]["buy"] += (
+                amount + brokerage
+            )
+
+        elif transaction_type == "SELL":
+
+            # Sale proceeds are reduced by brokerage.
+            monthly[month]["sell"] += (
+                amount - brokerage
+            )
+
+        elif transaction_type == "DIVIDEND":
+
+            monthly[month]["dividend"] += (
+                amount
+            )
 
     return [
         {
             "month": month,
-            "buy": round(values["buy"], 2),
-            "sell": round(values["sell"], 2),
-            "dividend": round(values["dividend"], 2),
+
+            "buy": round(
+                values["buy"],
+                2,
+            ),
+
+            "sell": round(
+                values["sell"],
+                2,
+            ),
+
+            "dividend": round(
+                values["dividend"],
+                2,
+            ),
+
             "net": round(
                 values["sell"]
                 + values["dividend"]
@@ -280,6 +383,7 @@ def _build_cashflow():
                 2,
             ),
         }
+
         for month, values in monthly.items()
     ]
 
@@ -290,42 +394,61 @@ def _build_cashflow():
 
 def _build_portfolio_growth():
 
-    transactions = get_transactions()
+    """
+    Build historical portfolio value from daily snapshots.
 
-    monthly = OrderedDict()
+    IMPORTANT:
+    This is intentionally based on portfolio_snapshots
+    rather than transactions.
 
-    cumulative = 0
+    Transactions tell us how much money was invested.
+    Snapshots tell us what the portfolio was actually
+    worth at a point in time.
+    """
 
-    for tx in sorted(
-        transactions,
-        key=lambda x: x["transaction_date"],
-    ):
-
-        if tx["transaction_type"] != "BUY":
-            continue
-
-        month = datetime.strptime(
-            tx["transaction_date"],
-            "%Y-%m-%d",
-        ).strftime("%b %Y")
-
-        amount = (
-            tx["quantity"] * tx["price"]
-        ) + tx["brokerage"]
-
-        monthly.setdefault(month, 0)
-        monthly[month] += amount
+    snapshots = get_snapshots()
 
     growth = []
 
-    for month, value in monthly.items():
+    for snapshot in snapshots:
 
-        cumulative += value
+        snapshot_date = snapshot["snapshot_date"]
+
+        current_value = (
+            snapshot["current_value"]
+        )
 
         growth.append(
             {
-                "month": month,
-                "value": round(cumulative, 2),
+                # Keep "month" for backward compatibility
+                # with existing frontend code.
+                "month": snapshot_date,
+
+                # Proper historical date.
+                "date": snapshot_date,
+
+                # Actual portfolio market value.
+                "value": round(
+                    current_value,
+                    2,
+                ),
+
+                # Additional historical information
+                # available to future charts.
+                "invested": round(
+                    snapshot["invested"],
+                    2,
+                ),
+
+                "profit": round(
+                    snapshot["profit"],
+                    2,
+                ),
+
+                "return_pct": round(
+                    snapshot["return_pct"],
+                    2,
+                ),
             }
         )
 

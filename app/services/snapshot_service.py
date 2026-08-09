@@ -55,23 +55,102 @@ def asset_snapshot_exists(snapshot_date=None):
 
 
 # =====================================================
-# Snapshot History
+# Portfolio Snapshot History
 # =====================================================
 
 def get_snapshots():
+    """
+    Return portfolio snapshots in chronological order.
+
+    These are historical values persisted in the database.
+    They must not be recalculated from today's market prices.
+    """
 
     conn = get_connection()
 
     try:
-        rows = conn.execute(
+
+        return conn.execute(
             """
-            SELECT *
+            SELECT
+                id,
+                snapshot_date,
+                invested,
+                current_value,
+                profit,
+                return_pct,
+                brokerage,
+                dividend,
+                bonus,
+                created_at
             FROM portfolio_snapshots
             ORDER BY snapshot_date
             """
         ).fetchall()
 
-        return rows
+    finally:
+        conn.close()
+
+
+# =====================================================
+# Asset Snapshot History
+# =====================================================
+
+def get_asset_snapshots(asset_id=None):
+    """
+    Return historical asset snapshots.
+
+    If asset_id is supplied, only that asset's history is returned.
+    Otherwise all asset snapshots are returned.
+    """
+
+    conn = get_connection()
+
+    try:
+
+        if asset_id is None:
+
+            return conn.execute(
+                """
+                SELECT
+                    id,
+                    snapshot_date,
+                    asset_id,
+                    quantity,
+                    average_price,
+                    market_price,
+                    invested,
+                    current,
+                    profit,
+                    allocation,
+                    created_at
+                FROM asset_snapshots
+                ORDER BY
+                    snapshot_date,
+                    asset_id
+                """
+            ).fetchall()
+
+        return conn.execute(
+            """
+            SELECT
+                id,
+                snapshot_date,
+                asset_id,
+                quantity,
+                average_price,
+                market_price,
+                invested,
+                current,
+                profit,
+                allocation,
+                created_at
+            FROM asset_snapshots
+            WHERE asset_id = ?
+            ORDER BY snapshot_date
+            """,
+            (asset_id,),
+        ).fetchall()
 
     finally:
         conn.close()
@@ -81,9 +160,19 @@ def get_snapshots():
 # Save Daily Snapshot
 # =====================================================
 
-def save_snapshot():
+def save_snapshot(snapshot_date=None):
+    """
+    Persist one portfolio snapshot for the supplied date.
 
-    today = date.today().isoformat()
+    Existing snapshots are intentionally never overwritten.
+    Historical snapshots must remain historical.
+    """
+
+    today = (
+        snapshot_date
+        if snapshot_date is not None
+        else date.today().isoformat()
+    )
 
     portfolio = get_portfolio()
 
