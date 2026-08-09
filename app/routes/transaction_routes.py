@@ -9,6 +9,7 @@ from flask import (
     url_for,
 )
 
+from app.services.asset_service import get_asset
 from app.services.portfolio_service import get_holding
 
 from app.services.transaction_service import (
@@ -52,8 +53,6 @@ def add_transaction_page():
             today=date.today().isoformat(),
         )
 
-    asset = request.form["asset"]
-    asset_type = request.form["asset_type"]
     asset_id = request.form["asset_id"]
 
     # ---------------------------------
@@ -71,7 +70,32 @@ def add_transaction_page():
             ),
         )
 
-    asset_id = int(asset_id)
+    try:
+        asset_id = int(asset_id)
+    except ValueError:
+
+        return render_template(
+            "add_transaction.html",
+            today=date.today().isoformat(),
+            error_message="Invalid asset selected.",
+        )
+
+    asset_record = get_asset(asset_id)
+
+    if asset_record is None:
+
+        return render_template(
+            "add_transaction.html",
+            today=date.today().isoformat(),
+            error_message="Selected asset does not exist.",
+        )
+
+    # ---------------------------------
+    # Derive Asset Metadata
+    # ---------------------------------
+
+    asset = asset_record["symbol"]
+    asset_type = asset_record["asset_class"]
 
     transaction_type = request.form["transaction_type"]
 
@@ -127,7 +151,10 @@ def add_transaction_page():
 # Edit Transaction
 # ---------------------------------
 
-@transaction_bp.route("/edit-transaction/<int:transaction_id>", methods=["GET", "POST"])
+@transaction_bp.route(
+    "/edit-transaction/<int:transaction_id>",
+    methods=["GET", "POST"],
+)
 def edit_transaction_page(transaction_id):
 
     tx = get_transaction(transaction_id)
@@ -143,15 +170,48 @@ def edit_transaction_page(transaction_id):
             today=date.today().isoformat(),
         )
 
+    asset_id = request.form["asset_id"]
+
+    try:
+        asset_id = int(asset_id)
+    except ValueError:
+
+        return render_template(
+            "edit_transaction.html",
+            tx=tx,
+            today=date.today().isoformat(),
+            error_message="Invalid asset selected.",
+        )
+
+    asset_record = get_asset(asset_id)
+
+    if asset_record is None:
+
+        return render_template(
+            "edit_transaction.html",
+            tx=tx,
+            today=date.today().isoformat(),
+            error_message="Selected asset does not exist.",
+        )
+
+    # ---------------------------------
+    # Derive Asset Metadata
+    # ---------------------------------
+
+    asset = asset_record["symbol"]
+    asset_type = asset_record["asset_class"]
+
     update_transaction(
         transaction_id=transaction_id,
-        asset=request.form["asset"],
-        asset_type=request.form["asset_type"],
-        asset_id=int(request.form["asset_id"]),
+        asset=asset,
+        asset_type=asset_type,
+        asset_id=asset_id,
         transaction_type=request.form["transaction_type"],
         quantity=float(request.form["quantity"]),
         price=float(request.form["price"]),
-        brokerage=float(request.form.get("brokerage", 0) or 0),
+        brokerage=float(
+            request.form.get("brokerage", 0) or 0
+        ),
         transaction_date=request.form["transaction_date"],
         notes=request.form["notes"],
     )
@@ -168,7 +228,9 @@ def edit_transaction_page(transaction_id):
 # Delete Transaction
 # ---------------------------------
 
-@transaction_bp.route("/delete-transaction/<int:transaction_id>")
+@transaction_bp.route(
+    "/delete-transaction/<int:transaction_id>"
+)
 def remove_transaction(transaction_id):
 
     delete_transaction(transaction_id)
