@@ -13,6 +13,8 @@ def add_transaction(
     quantity,
     price,
     brokerage,
+    dividend,
+    bonus,
     transaction_date,
     notes,
 ):
@@ -30,10 +32,12 @@ def add_transaction(
             quantity,
             price,
             brokerage,
+            dividend,
+            bonus,
             transaction_date,
             notes
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             asset,
@@ -43,6 +47,8 @@ def add_transaction(
             quantity,
             price,
             brokerage,
+            dividend,
+            bonus,
             transaction_date,
             notes,
         ),
@@ -166,6 +172,8 @@ def update_transaction(
     quantity,
     price,
     brokerage,
+    dividend,
+    bonus,
     transaction_date,
     notes,
 ):
@@ -183,6 +191,8 @@ def update_transaction(
             quantity = ?,
             price = ?,
             brokerage = ?,
+            dividend = ?,
+            bonus = ?,
             transaction_date = ?,
             notes = ?
         WHERE id = ?
@@ -195,6 +205,8 @@ def update_transaction(
             quantity,
             price,
             brokerage,
+            dividend,
+            bonus,
             transaction_date,
             notes,
             transaction_id,

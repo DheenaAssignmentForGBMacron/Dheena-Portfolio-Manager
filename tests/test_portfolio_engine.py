@@ -102,29 +102,60 @@ class PortfolioEngineTests(unittest.TestCase):
         # Position
         # -------------------------------------------------
 
-        self.assertAlmostEqual(holding.qty, 7.0)
-        self.assertAlmostEqual(holding.invested, 1200.0)
-        self.assertAlmostEqual(holding.avg, 1200 / 7)
+        self.assertAlmostEqual(
+            holding.qty,
+            7.0,
+        )
+
+        self.assertAlmostEqual(
+            holding.invested,
+            1200.0,
+        )
+
+        self.assertAlmostEqual(
+            holding.avg,
+            1200 / 7,
+        )
+
+        # -------------------------------------------------
+        # Realized P/L
+        # -------------------------------------------------
 
         self.assertAlmostEqual(
             holding.realized_pl,
             600.0,
         )
 
+        # -------------------------------------------------
+        # Current Value
+        # -------------------------------------------------
+
         self.assertAlmostEqual(
             holding.current_value,
             1680.0,
         )
+
+        # -------------------------------------------------
+        # Unrealized P/L
+        # -------------------------------------------------
 
         self.assertAlmostEqual(
             holding.unrealized_pl,
             480.0,
         )
 
+        # -------------------------------------------------
+        # Total P/L
+        # -------------------------------------------------
+
         self.assertAlmostEqual(
             holding.total_pl,
             1080.0,
         )
+
+        # -------------------------------------------------
+        # Portfolio Summary
+        # -------------------------------------------------
 
         self.assertAlmostEqual(
             summary["invested"],
@@ -155,6 +186,7 @@ class PortfolioEngineTests(unittest.TestCase):
             summary["return_pct"],
             90.0,
         )
+
     # =====================================================
     # Multiple Assets
     # =====================================================
@@ -216,7 +248,10 @@ class PortfolioEngineTests(unittest.TestCase):
         abc = holdings[1]
         xyz = holdings[2]
 
+        # -------------------------------------------------
         # ABC
+        # -------------------------------------------------
+
         self.assertAlmostEqual(
             abc.qty,
             10.0,
@@ -237,7 +272,10 @@ class PortfolioEngineTests(unittest.TestCase):
             200.0,
         )
 
+        # -------------------------------------------------
         # XYZ
+        # -------------------------------------------------
+
         self.assertAlmostEqual(
             xyz.qty,
             5.0,
@@ -257,6 +295,10 @@ class PortfolioEngineTests(unittest.TestCase):
             xyz.unrealized_pl,
             250.0,
         )
+
+    # =====================================================
+    # Price Service
+    # =====================================================
 
     @patch("app.services.portfolio_engine.get_price")
     @patch("app.services.portfolio_engine.get_transactions_with_assets")
@@ -286,8 +328,18 @@ class PortfolioEngineTests(unittest.TestCase):
 
         holding = portfolio["holdings"][1]
 
-        self.assertEqual(holding.current_price, 150)
-        mock_get_price.assert_called_once_with("HAL")
+        self.assertEqual(
+            holding.current_price,
+            150,
+        )
+
+        mock_get_price.assert_called_once_with(
+            "HAL"
+        )
+
+    # =====================================================
+    # Missing Market Price
+    # =====================================================
 
     @patch("app.services.portfolio_engine.get_price")
     @patch("app.services.portfolio_engine.get_transactions_with_assets")
@@ -297,7 +349,7 @@ class PortfolioEngineTests(unittest.TestCase):
         mock_get_price,
     ):
         mock_transactions.return_value = [
-        {
+            {
                 "asset_id": 1,
                 "symbol": "UNKNOWN",
                 "name": "Unknown Asset",
@@ -317,25 +369,39 @@ class PortfolioEngineTests(unittest.TestCase):
 
         holding = portfolio["holdings"][1]
 
-        self.assertEqual(holding.current_price, 0.0)
-        self.assertEqual(holding.current_value, 0.0)
-        self.assertEqual(holding.unrealized_pl, -1000.0)
+        self.assertEqual(
+            holding.current_price,
+            0.0,
+        )
 
-        mock_get_price.assert_called_once_with("UNKNOWN")
+        self.assertEqual(
+            holding.current_value,
+            0.0,
+        )
+
+        self.assertEqual(
+            holding.unrealized_pl,
+            -1000.0,
+        )
+
+        mock_get_price.assert_called_once_with(
+            "UNKNOWN"
+        )
 
     # =====================================================
-    # Unsupported Transactions
+    # Dividend Transactions
     # =====================================================
 
     @patch("app.services.portfolio_engine.get_price")
     @patch("app.services.portfolio_engine.get_transactions_with_assets")
-    def test_unsupported_transaction_does_not_change_position(
+    def test_dividend_does_not_change_position(
         self,
         mock_get_transactions,
         mock_get_price,
     ):
         mock_get_transactions.return_value = [
 
+            # BUY 10 @ 100
             self.make_row(
                 transaction_id=1,
                 asset_id=1,
@@ -347,6 +413,10 @@ class PortfolioEngineTests(unittest.TestCase):
                 price=100,
             ),
 
+            # DIVIDEND ₹50
+            #
+            # This must not change the share position,
+            # but the dividend income must be recorded.
             self.make_row(
                 transaction_id=2,
                 asset_id=1,
@@ -388,12 +458,46 @@ class PortfolioEngineTests(unittest.TestCase):
         )
 
         # -------------------------------------------------
-        # Dividend should still be recorded
+        # FIFO lots must remain unchanged
+        # -------------------------------------------------
+
+        self.assertEqual(
+            len(holding.lots),
+            1,
+        )
+
+        self.assertAlmostEqual(
+            holding.lots[0]["quantity"],
+            10.0,
+        )
+
+        self.assertAlmostEqual(
+            holding.lots[0]["price"],
+            100.0,
+        )
+
+        # -------------------------------------------------
+        # Dividend must be recorded as income
         # -------------------------------------------------
 
         self.assertAlmostEqual(
             holding.dividend,
-            0.0,
+            50.0,
+        )
+
+        # -------------------------------------------------
+        # Market calculations are based only
+        # on the share position
+        # -------------------------------------------------
+
+        self.assertAlmostEqual(
+            holding.current_value,
+            1200.0,
+        )
+
+        self.assertAlmostEqual(
+            holding.unrealized_pl,
+            200.0,
         )
 
 

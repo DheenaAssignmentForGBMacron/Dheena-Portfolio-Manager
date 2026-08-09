@@ -66,39 +66,84 @@ class PortfolioEngine:
 
             holding = self.holdings[asset_id]
 
-            qty = float(row["quantity"])
-            price = float(row["price"])
+            transaction_type = row["transaction_type"]
 
-            if row["transaction_type"] == "BUY":
+            quantity = float(
+                row["quantity"] or 0
+            )
+
+            price = float(
+                row["price"] or 0
+            )
+
+            brokerage = float(
+                row["brokerage"] or 0
+            )
+
+            dividend = float(
+                row["dividend"] or 0
+            )
+
+            bonus = float(
+                row["bonus"] or 0
+            )
+
+            # =================================================
+            # BUY
+            # =================================================
+
+            if transaction_type == "BUY":
 
                 holding.buy(
-                    qty,
+                    quantity,
                     price,
                 )
 
-            elif row["transaction_type"] == "SELL":
+            # =================================================
+            # SELL
+            # =================================================
+
+            elif transaction_type == "SELL":
 
                 holding.sell(
-                    qty,
+                    quantity,
                     price,
                 )
+
+            # =================================================
+            # DIVIDEND
+            # =================================================
+
+            elif transaction_type == "DIVIDEND":
+
+                holding.add_dividend(
+                    dividend
+                )
+
+            # =================================================
+            # BONUS
+            # =================================================
+
+            elif transaction_type == "BONUS":
+
+                holding.add_bonus_shares(
+                    bonus
+                )
+
+            # =================================================
+            # Unsupported
+            # =================================================
 
             else:
 
-                # Ignore unsupported transaction types
-                # such as DIVIDEND for position accounting.
                 continue
 
+            # =================================================
+            # Transaction-level brokerage
+            # =================================================
+
             holding.add_brokerage(
-                float(row["brokerage"] or 0)
-            )
-
-            holding.add_dividend(
-                float(row["dividend"] or 0)
-            )
-
-            holding.add_bonus(
-                float(row["bonus"] or 0)
+                brokerage
             )
 
     # =====================================================
@@ -127,7 +172,8 @@ class PortfolioEngine:
 
         total_current_value = sum(
 
-            holding.qty * holding.current_price
+            holding.qty
+            * holding.current_price
 
             for holding in self.holdings.values()
 
@@ -175,7 +221,9 @@ class PortfolioEngine:
             # Holding Counts
             # -------------------------------------------------
 
-            "holdings_count": len(self.holdings),
+            "holdings_count": len(
+                self.holdings
+            ),
 
             "stock_count": 0,
             "mf_count": 0,
@@ -260,49 +308,21 @@ class PortfolioEngine:
         # Round Financial Values
         # =====================================================
 
-        summary["invested"] = round(
-            summary["invested"],
-            2,
-        )
+        for key in (
+            "invested",
+            "current",
+            "realized_pl",
+            "unrealized_pl",
+            "total_pl",
+            "return_pct",
+            "brokerage",
+            "dividend",
+            "bonus",
+        ):
 
-        summary["current"] = round(
-            summary["current"],
-            2,
-        )
-
-        summary["realized_pl"] = round(
-            summary["realized_pl"],
-            2,
-        )
-
-        summary["unrealized_pl"] = round(
-            summary["unrealized_pl"],
-            2,
-        )
-
-        summary["total_pl"] = round(
-            summary["total_pl"],
-            2,
-        )
-
-        summary["return_pct"] = round(
-            summary["return_pct"],
-            2,
-        )
-
-        summary["brokerage"] = round(
-            summary["brokerage"],
-            2,
-        )
-
-        summary["dividend"] = round(
-            summary["dividend"],
-            2,
-        )
-
-        summary["bonus"] = round(
-            summary["bonus"],
-            2,
-        )
+            summary[key] = round(
+                summary[key],
+                2,
+            )
 
         return summary
