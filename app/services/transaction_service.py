@@ -9,6 +9,37 @@ from app.repositories.transaction_repository import (
 
 from app.services.portfolio_service import invalidate_portfolio
 
+from datetime import datetime
+
+VALID_TRANSACTION_TYPES = {"BUY", "SELL"}
+
+def _validate_transaction(
+    transaction_type,
+    quantity,
+    price,
+    brokerage,
+    transaction_date,
+):
+    if transaction_type not in VALID_TRANSACTION_TYPES:
+        raise ValueError(
+            f"Unsupported transaction type: {transaction_type}"
+        )
+
+    if quantity <= 0:
+        raise ValueError("Quantity must be greater than zero.")
+
+    if price < 0:
+        raise ValueError("Price cannot be negative.")
+
+    if brokerage < 0:
+        raise ValueError("Brokerage cannot be negative.")
+
+    try:
+        datetime.strptime(transaction_date, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        raise ValueError(
+            "Transaction date must be a valid date in YYYY-MM-DD format."
+        )
 
 # =====================================================
 # Create
@@ -25,6 +56,14 @@ def add_transaction(
     transaction_date,
     notes,
 ):
+    _validate_transaction(
+        transaction_type=transaction_type,
+        quantity=quantity,
+        price=price,
+        brokerage=brokerage,
+        transaction_date=transaction_date,
+    )
+
     result = repo_add_transaction(
         asset,
         asset_type,
@@ -76,6 +115,14 @@ def update_transaction(
     transaction_date,
     notes,
 ):
+    _validate_transaction(
+        transaction_type=transaction_type,
+        quantity=quantity,
+        price=price,
+        brokerage=brokerage,
+        transaction_date=transaction_date,
+    )
+
     result = repo_update_transaction(
         transaction_id,
         asset,
