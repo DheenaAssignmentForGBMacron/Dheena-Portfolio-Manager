@@ -1,6 +1,5 @@
 from flask import Blueprint, render_template
 
-from app.services.snapshot_service import save_snapshot
 from app.services.analytics_service import get_portfolio_analytics
 from app.services.asset_analytics_service import get_asset_analytics
 from app.services.portfolio_service import get_holding
@@ -16,8 +15,6 @@ portfolio_bp = Blueprint("portfolio", __name__)
 
 @portfolio_bp.route("/portfolio")
 def portfolio():
-
-    save_snapshot()
 
     analytics = get_portfolio_analytics()
 
