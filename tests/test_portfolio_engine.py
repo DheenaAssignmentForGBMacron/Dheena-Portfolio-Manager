@@ -258,6 +258,71 @@ class PortfolioEngineTests(unittest.TestCase):
             250.0,
         )
 
+    @patch("app.services.portfolio_engine.get_price")
+    @patch("app.services.portfolio_engine.get_transactions_with_assets")
+    def test_process_uses_price_service(
+        self,
+        mock_transactions,
+        mock_get_price,
+    ):
+        mock_transactions.return_value = [
+            {
+                "asset_id": 1,
+                "symbol": "HAL",
+                "name": "HAL",
+                "asset_class": "Stock",
+                "transaction_type": "BUY",
+                "quantity": 10,
+                "price": 100,
+                "brokerage": 0,
+                "dividend": 0,
+                "bonus": 0,
+            }
+        ]
+
+        mock_get_price.return_value = 150
+
+        portfolio = PortfolioEngine().process()
+
+        holding = portfolio["holdings"][1]
+
+        self.assertEqual(holding.current_price, 150)
+        mock_get_price.assert_called_once_with("HAL")
+
+    @patch("app.services.portfolio_engine.get_price")
+    @patch("app.services.portfolio_engine.get_transactions_with_assets")
+    def test_process_handles_missing_market_price(
+        self,
+        mock_transactions,
+        mock_get_price,
+    ):
+        mock_transactions.return_value = [
+        {
+                "asset_id": 1,
+                "symbol": "UNKNOWN",
+                "name": "Unknown Asset",
+                "asset_class": "Stock",
+                "transaction_type": "BUY",
+                "quantity": 10,
+                "price": 100,
+                "brokerage": 0,
+                "dividend": 0,
+                "bonus": 0,
+            }
+        ]
+
+        mock_get_price.return_value = None
+
+        portfolio = PortfolioEngine().process()
+
+        holding = portfolio["holdings"][1]
+
+        self.assertEqual(holding.current_price, 0.0)
+        self.assertEqual(holding.current_value, 0.0)
+        self.assertEqual(holding.unrealized_pl, -1000.0)
+
+        mock_get_price.assert_called_once_with("UNKNOWN")
+
     # =====================================================
     # Unsupported Transactions
     # =====================================================
