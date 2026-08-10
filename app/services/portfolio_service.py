@@ -1,19 +1,30 @@
-from app.repositories.portfolio_repository import repository
+"""
+Portfolio Service
+
+Application-facing interface for portfolio data.
+
+PortfolioService does not perform portfolio calculations
+itself. It delegates calculation and caching to PortfolioCache.
+
+This layer converts domain Holding objects into dictionaries
+for API/template consumers where appropriate.
+"""
+
+from app.services.portfolio_cache import portfolio_cache
 
 
-# =====================================================
+# =========================================================
 # Portfolio
-# =====================================================
+# =========================================================
 
 def get_portfolio():
     """
-    Returns the current portfolio.
+    Return the current portfolio in presentation-friendly form.
 
-    Uses the repository cache until the portfolio
-    is explicitly invalidated.
+    The underlying portfolio is obtained from PortfolioCache.
     """
 
-    result = repository.get_portfolio()
+    result = portfolio_cache.get_portfolio()
 
     return {
         "holdings": [
@@ -24,56 +35,55 @@ def get_portfolio():
     }
 
 
-# =====================================================
+# =========================================================
 # Single Holding
-# =====================================================
+# =========================================================
 
 def get_holding(asset_id):
     """
-    Returns a single holding.
+    Return a single raw Holding object by asset ID.
+
+    Returns None when the asset does not exist.
     """
 
-    result = repository.get_portfolio()
+    result = portfolio_cache.get_portfolio()
 
     return result["holdings"].get(asset_id)
 
 
-# =====================================================
+# =========================================================
 # Raw Holdings
-# =====================================================
+# =========================================================
 
 def get_holdings():
     """
-    Returns raw Holding objects.
+    Return the raw Holding objects keyed by asset ID.
     """
 
-    return repository.get_portfolio()["holdings"]
+    return portfolio_cache.get_portfolio()["holdings"]
 
 
-# =====================================================
-# Invalidate Portfolio Cache
-# =====================================================
+# =========================================================
+# Invalidate Portfolio
+# =========================================================
 
-def invalidate_portfolio():
+def invalidate_portfolio() -> None:
     """
-    Clears the cached portfolio.
+    Invalidate the cached portfolio.
 
-    The next portfolio request will rebuild the
-    portfolio from the database.
+    The next portfolio request will rebuild the portfolio.
     """
 
-    repository.invalidate()
+    portfolio_cache.invalidate()
 
 
-# =====================================================
+# =========================================================
 # Refresh Portfolio
-# =====================================================
+# =========================================================
 
 def refresh_portfolio():
     """
-    Clears the portfolio cache and immediately rebuilds it.
+    Invalidate the cache and immediately rebuild the portfolio.
     """
 
-    repository.invalidate()
-
-    return repository.get_portfolio()
+    return portfolio_cache.refresh()
