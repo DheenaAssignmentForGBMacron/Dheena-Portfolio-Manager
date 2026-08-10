@@ -499,7 +499,114 @@ class PortfolioEngineTests(unittest.TestCase):
             holding.unrealized_pl,
             200.0,
         )
+    # =====================================================
+    # Engine Reusability
+    # =====================================================
 
+    @patch("app.services.portfolio_engine.get_price")
+    @patch("app.services.portfolio_engine.get_transactions_with_assets")
+    def test_process_is_reusable(
+        self,
+        mock_get_transactions,
+        mock_get_price,
+    ):
+        mock_get_transactions.return_value = [
+
+            self.make_row(
+                transaction_id=1,
+                asset_id=1,
+                symbol="ABC",
+                name="ABC Ltd",
+                asset_class="Stock",
+                transaction_type="BUY",
+                quantity=10,
+                price=100,
+            ),
+        ]
+
+        mock_get_price.return_value = 120
+
+        engine = PortfolioEngine()
+
+        first_result = engine.process()
+        second_result = engine.process()
+
+        first_holding = first_result["holdings"][1]
+        second_holding = second_result["holdings"][1]
+
+        # -------------------------------------------------
+        # Both runs must produce the same position.
+        # -------------------------------------------------
+
+        self.assertAlmostEqual(
+            first_holding.qty,
+            10.0,
+        )
+
+        self.assertAlmostEqual(
+            second_holding.qty,
+            10.0,
+        )
+
+        self.assertAlmostEqual(
+            first_holding.invested,
+            1000.0,
+        )
+
+        self.assertAlmostEqual(
+            second_holding.invested,
+            1000.0,
+        )
+
+        self.assertAlmostEqual(
+            first_holding.current_value,
+            1200.0,
+        )
+
+        self.assertAlmostEqual(
+            second_holding.current_value,
+            1200.0,
+        )
+
+        self.assertAlmostEqual(
+            first_holding.unrealized_pl,
+            200.0,
+        )
+
+        self.assertAlmostEqual(
+            second_holding.unrealized_pl,
+            200.0,
+        )
+
+        # -------------------------------------------------
+        # Transaction data must not be accumulated between
+        # process() calls.
+        # -------------------------------------------------
+
+        self.assertEqual(
+            len(second_holding.lots),
+            1,
+        )
+
+        self.assertAlmostEqual(
+            second_holding.lots[0]["quantity"],
+            10.0,
+        )
+
+        self.assertAlmostEqual(
+            second_holding.lots[0]["price"],
+            100.0,
+        )
+
+        self.assertEqual(
+            mock_get_transactions.call_count,
+            2,
+        )
+
+        self.assertEqual(
+            mock_get_price.call_count,
+            2,
+        )
 
 if __name__ == "__main__":
     unittest.main()
