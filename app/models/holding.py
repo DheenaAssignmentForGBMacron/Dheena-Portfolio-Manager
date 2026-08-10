@@ -11,6 +11,8 @@ Cost-basis accounting uses FIFO (First In, First Out):
 - Every BONUS creates zero-cost shares as a new FIFO lot.
 - Realized P/L is calculated from the cost of lots consumed by SELL.
 - Invested/average cost represent only the currently open lots.
+- Lifetime buy cost tracks all BUY transactions, including shares
+  that have subsequently been sold.
 - DIVIDEND transactions affect income only and do not affect position.
 
 This class intentionally contains no database or Flask logic.
@@ -48,6 +50,21 @@ class Holding:
         self.invested = 0.0
 
         self.lots = []
+
+        # -------------------------------------------------
+        # Lifetime Cost
+        # -------------------------------------------------
+
+        # Total amount spent on all BUY transactions.
+        #
+        # This does NOT decrease when shares are sold.
+        #
+        # Example:
+        # BUY 10 @ 100  -> 1000
+        # BUY 10 @ 200  -> 2000
+        # SELL 10       -> lifetime_buy_cost remains 3000
+        #
+        self.lifetime_buy_cost = 0.0
 
         # -------------------------------------------------
         # Income / Expenses
@@ -89,7 +106,8 @@ class Holding:
         """
         Process a BUY transaction.
 
-        A BUY creates a new FIFO lot using the transaction price.
+        A BUY creates a new FIFO lot and permanently contributes
+        to lifetime_buy_cost.
         """
 
         if quantity <= 0:
@@ -102,12 +120,18 @@ class Holding:
                 "Buy price cannot be negative."
             )
 
+        quantity = float(quantity)
+        price = float(price)
+
         self.lots.append(
             {
-                "quantity": float(quantity),
-                "price": float(price),
+                "quantity": quantity,
+                "price": price,
             }
         )
+
+        # Lifetime cost must never be reduced by SELL.
+        self.lifetime_buy_cost += quantity * price
 
         self._recalculate_position()
 
@@ -122,6 +146,8 @@ class Holding:
         The oldest open lot is consumed first.
 
         A single SELL may consume multiple lots.
+
+        SELL does NOT reduce lifetime_buy_cost.
         """
 
         if quantity <= 0:
@@ -135,6 +161,7 @@ class Holding:
             )
 
         remaining_to_sell = float(quantity)
+        sell_price = float(sell_price)
 
         if remaining_to_sell > self.qty + self.EPSILON:
             raise ValueError(
@@ -158,7 +185,7 @@ class Holding:
             )
 
             realized_pl += consumed * (
-                float(sell_price) - lot["price"]
+                sell_price - lot["price"]
             )
 
             lot["quantity"] -= consumed
@@ -179,16 +206,14 @@ class Holding:
         Process bonus shares as zero-cost shares.
 
         Bonus shares increase the current quantity but do not
-        increase invested capital.
+        increase invested capital or lifetime buy cost.
 
         A zero-cost FIFO lot is created so that:
 
             quantity increases
             invested remains unchanged
             average cost decreases
-
-        The bonus quantity is also recorded separately for
-        portfolio reporting.
+            lifetime_buy_cost remains unchanged
         """
 
         if quantity <= 0:
@@ -214,9 +239,7 @@ class Holding:
     # =====================================================
 
     def _recalculate_position(self) -> None:
-        """
-        Recalculate current position values from open FIFO lots.
-        """
+        """Recalculate current position values from open FIFO lots."""
 
         self.qty = sum(
             lot["quantity"]
@@ -265,7 +288,7 @@ class Holding:
         Record dividend income.
 
         Dividends do not affect quantity, invested amount,
-        average price, or FIFO lots.
+        average price, lifetime buy cost, or FIFO lots.
         """
 
         if amount < 0:
@@ -354,7 +377,7 @@ class Holding:
     @property
     def total_pl(self) -> float:
         """
-        Total profit/loss from realized and unrealized P/L.
+        Total trading profit/loss.
 
         Dividend income is tracked separately and is not mixed
         into trading P/L.
@@ -365,6 +388,37 @@ class Holding:
             + self.unrealized_pl
         )
 
+    @property
+    def return_pct(self) -> float:
+        """
+        Lifetime return percentage.
+
+        Uses total P/L divided by the total amount spent on
+        BUY transactions over the lifetime of the holding.
+
+        This intentionally uses lifetime_buy_cost instead of
+        current invested cost because current invested cost
+        excludes the cost of shares that have already been sold.
+        """
+
+        if self.lifetime_buy_cost <= self.EPSILON:
+            return 0.0
+
+        return (
+            self.total_pl
+            / self.lifetime_buy_cost
+        ) * 100
+
+    @property
+    def total_buy_cost(self) -> float:
+        """
+        Backward-compatible alias for lifetime_buy_cost.
+
+        Older code and tests use total_buy_cost.
+        The canonical domain attribute is lifetime_buy_cost.
+        """
+        return self.lifetime_buy_cost
+    
     @property
     def is_active(self) -> bool:
         """Return True if the holding currently owns shares."""
@@ -390,6 +444,12 @@ class Holding:
             "avg": round(self.avg, 2),
             "invested": round(self.invested, 2),
 
+            # Lifetime
+            "lifetime_buy_cost": round(
+                self.lifetime_buy_cost,
+                2,
+            ),
+
             # Market
             "current_price": round(
                 self.current_price,
@@ -411,6 +471,10 @@ class Holding:
             ),
             "total_pl": round(
                 self.total_pl,
+                2,
+            ),
+            "return_pct": round(
+                self.return_pct,
                 2,
             ),
 

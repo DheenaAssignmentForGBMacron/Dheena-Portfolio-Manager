@@ -224,6 +224,10 @@ class PortfolioEngine:
             "realized_pl": 0.0,
             "unrealized_pl": 0.0,
             "total_pl": 0.0,
+
+            # Total capital ever deployed through BUYs.
+            "total_buy_cost": 0.0,
+
             "return_pct": 0.0,
 
             "brokerage": 0.0,
@@ -265,6 +269,10 @@ class PortfolioEngine:
 
             summary["total_pl"] += holding.total_pl
 
+            summary["total_buy_cost"] += (
+                holding.lifetime_buy_cost
+            )
+
             summary["brokerage"] += holding.brokerage
 
             summary["dividend"] += holding.dividend
@@ -287,11 +295,11 @@ class PortfolioEngine:
         # Portfolio Return
         # =================================================
 
-        if summary["invested"] > 0:
+        if summary["total_buy_cost"] > 0:
 
             summary["return_pct"] = (
                 summary["total_pl"]
-                / summary["invested"]
+                / summary["total_buy_cost"]
             ) * 100
 
         # =================================================
@@ -304,6 +312,7 @@ class PortfolioEngine:
             "realized_pl",
             "unrealized_pl",
             "total_pl",
+            "total_buy_cost",
             "return_pct",
             "brokerage",
             "dividend",

@@ -184,7 +184,7 @@ class PortfolioEngineTests(unittest.TestCase):
 
         self.assertAlmostEqual(
             summary["return_pct"],
-            90.0,
+            72.0,
         )
 
     # =====================================================
@@ -606,6 +606,122 @@ class PortfolioEngineTests(unittest.TestCase):
         self.assertEqual(
             mock_get_price.call_count,
             2,
+        )
+
+    # =====================================================
+    # Lifetime Return
+    # =====================================================
+
+    @patch("app.services.portfolio_engine.get_price")
+    @patch("app.services.portfolio_engine.get_transactions_with_assets")
+    def test_return_percentage_uses_lifetime_buy_cost_after_sell(
+        self,
+        mock_get_transactions,
+        mock_get_price,
+    ):
+        mock_get_transactions.return_value = [
+
+            # BUY ₹1,000
+            self.make_row(
+                transaction_id=1,
+                asset_id=1,
+                symbol="ABC",
+                name="ABC Ltd",
+                asset_class="Stock",
+                transaction_type="BUY",
+                quantity=10,
+                price=100,
+            ),
+
+            # SELL entire position for ₹1,200
+            self.make_row(
+                transaction_id=2,
+                asset_id=1,
+                symbol="ABC",
+                name="ABC Ltd",
+                asset_class="Stock",
+                transaction_type="SELL",
+                quantity=10,
+                price=120,
+            ),
+        ]
+
+        # No open position remains, so current value is zero.
+        mock_get_price.return_value = 120
+
+        result = PortfolioEngine().process()
+
+        holding = result["holdings"][1]
+        summary = result["summary"]
+
+        # Current position is closed.
+        self.assertAlmostEqual(
+            holding.qty,
+            0.0,
+        )
+
+        self.assertAlmostEqual(
+            holding.invested,
+            0.0,
+        )
+
+        # Lifetime BUY capital must remain available
+        # for return calculation.
+        self.assertAlmostEqual(
+            holding.total_buy_cost,
+            1000.0,
+        )
+
+        # ₹200 realized profit.
+        self.assertAlmostEqual(
+            holding.realized_pl,
+            200.0,
+        )
+
+        self.assertAlmostEqual(
+            holding.unrealized_pl,
+            0.0,
+        )
+
+        self.assertAlmostEqual(
+            holding.total_pl,
+            200.0,
+        )
+
+        self.assertAlmostEqual(
+            holding.return_pct,
+            20.0,
+        )
+
+        # Portfolio summary must use the same denominator.
+        self.assertAlmostEqual(
+            summary["invested"],
+            0.0,
+        )
+
+        self.assertAlmostEqual(
+            summary["total_buy_cost"],
+            1000.0,
+        )
+
+        self.assertAlmostEqual(
+            summary["realized_pl"],
+            200.0,
+        )
+
+        self.assertAlmostEqual(
+            summary["unrealized_pl"],
+            0.0,
+        )
+
+        self.assertAlmostEqual(
+            summary["total_pl"],
+            200.0,
+        )
+
+        self.assertAlmostEqual(
+            summary["return_pct"],
+            20.0,
         )
 
 if __name__ == "__main__":
