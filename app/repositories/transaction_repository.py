@@ -160,6 +160,31 @@ def get_transactions_with_assets():
             """
         ).fetchall()
 
+def get_transactions_for_validation():
+    """
+    Return the complete transaction history in deterministic
+    chronological order for portfolio-integrity validation.
+
+    Transactions are ordered by date and then ID so replaying the
+    same database history always produces the same portfolio state.
+    """
+
+    with _repository_connection() as conn:
+        return conn.execute(
+            """
+            SELECT
+                t.*,
+                a.symbol,
+                a.name,
+                a.asset_class
+            FROM transactions t
+            JOIN assets a
+                ON t.asset_id = a.id
+            ORDER BY
+                t.transaction_date,
+                t.id
+            """
+        ).fetchall()
 
 def update_transaction(
     transaction_id,
