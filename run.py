@@ -1,25 +1,31 @@
+"""
+DPM development entry point.
+
+Production deployments should use the Flask application factory
+directly rather than relying on this module.
+"""
+
 from app import create_app
-from app.database import get_connection
+from app.database import initialize_database
 from app.services.asset_service import seed_assets
 
 
-def initialize_database() -> None:
+def bootstrap() -> None:
     """
-    Initialize the database schema and seed master data.
-    Safe to execute on every application startup.
+    Prepare the database and required master data.
     """
-    conn = get_connection()
 
-    with open("database/schema.sql", encoding="utf-8") as file:
-        conn.executescript(file.read())
-
-    conn.commit()
-    conn.close()
-
+    initialize_database()
     seed_assets()
 
 
+app = create_app()
+
+
 if __name__ == "__main__":
-    initialize_database()
-    app = create_app()
-    app.run(debug=True)
+
+    bootstrap()
+
+    app.run(
+        debug=app.config["DEBUG"],
+    )

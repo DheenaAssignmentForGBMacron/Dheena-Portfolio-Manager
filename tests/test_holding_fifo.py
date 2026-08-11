@@ -268,6 +268,5 @@ class HoldingFIFOTests(unittest.TestCase):
             50.0,
         )
 
-
 if __name__ == "__main__":
     unittest.main()
