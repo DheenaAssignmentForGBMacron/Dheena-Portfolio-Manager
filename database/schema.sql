@@ -106,3 +106,22 @@ CREATE TABLE IF NOT EXISTS asset_snapshots (
     FOREIGN KEY (asset_id)
         REFERENCES assets(id)
 );
+
+-- =====================================================
+-- Performance Indexes
+-- =====================================================
+
+CREATE INDEX IF NOT EXISTS idx_transactions_asset_id
+    ON transactions(asset_id);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_asset_date
+    ON transactions(asset_id, transaction_date, id);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_date
+    ON transactions(transaction_date);
+
+CREATE INDEX IF NOT EXISTS idx_asset_snapshots_asset_date
+    ON asset_snapshots(asset_id, snapshot_date);
+
+CREATE INDEX IF NOT EXISTS idx_asset_snapshots_date
+    ON asset_snapshots(snapshot_date);
