@@ -9,8 +9,8 @@ from flask import (
 
 from app.services.asset_service import (
     add_asset,
-    get_assets,
     get_asset_summary,
+    get_assets_with_holdings,
 )
 
 
@@ -24,8 +24,7 @@ assets_bp = Blueprint("assets", __name__)
 @assets_bp.route("/assets")
 def assets():
 
-    assets = get_assets()
-
+    assets = get_assets_with_holdings()
     summary = get_asset_summary()
 
     return render_template(

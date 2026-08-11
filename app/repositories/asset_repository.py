@@ -1,7 +1,18 @@
+"""
+Asset Repository
+
+Owns persistence operations for assets.
+
+This layer contains SQL/database access only.
+Portfolio calculations and transaction-derived positions
+belong to the portfolio domain/services.
+"""
+
 from app.database import database_connection
 
 
 class AssetRepository:
+    """Persistence operations for portfolio assets."""
 
     def add(
         self,
@@ -33,36 +44,14 @@ class AssetRepository:
             return cursor.lastrowid
 
     def get_all(self):
+        """Return all persisted assets."""
 
         with database_connection() as conn:
             return conn.execute(
                 """
-                SELECT
-                    a.*,
-
-                    COALESCE(
-                        SUM(
-                            CASE
-                                WHEN t.transaction_type = 'BUY'
-                                    THEN t.quantity
-
-                                WHEN t.transaction_type = 'SELL'
-                                    THEN -t.quantity
-
-                                ELSE 0
-                            END
-                        ),
-                        0
-                    ) AS holdings
-
-                FROM assets a
-
-                LEFT JOIN transactions t
-                    ON t.asset_id = a.id
-
-                GROUP BY a.id
-
-                ORDER BY a.symbol
+                SELECT *
+                FROM assets
+                ORDER BY symbol
                 """
             ).fetchall()
 
@@ -132,20 +121,3 @@ class AssetRepository:
                 FROM assets
                 """
             ).fetchone()
-
-    def seed(self, assets):
-
-        with database_connection() as conn:
-            conn.executemany(
-                """
-                INSERT OR IGNORE INTO assets
-                (
-                    symbol,
-                    name,
-                    asset_class,
-                    exchange
-                )
-                VALUES (?, ?, ?, ?)
-                """,
-                assets,
-            )
