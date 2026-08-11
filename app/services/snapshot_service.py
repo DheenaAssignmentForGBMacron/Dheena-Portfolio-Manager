@@ -1,74 +1,85 @@
+"""
+Snapshot Service
+
+Persists historical portfolio and asset snapshots.
+
+Snapshots are point-in-time records. Once a snapshot exists for a
+date, it is never overwritten.
+"""
+
 from datetime import date
 
-from app.database import get_connection
+from app.database import database_connection
 from app.services.portfolio_service import get_portfolio
 
 
+def _normalize_date(snapshot_date=None):
+    """Return the requested snapshot date."""
+
+    return (
+        snapshot_date
+        if snapshot_date is not None
+        else date.today().isoformat()
+    )
+
+
 # =====================================================
-# Snapshot Utilities
+# Existence
 # =====================================================
 
 def snapshot_exists(snapshot_date=None):
+    """Return whether a portfolio snapshot exists."""
 
-    if snapshot_date is None:
-        snapshot_date = date.today().isoformat()
+    snapshot_date = _normalize_date(snapshot_date)
 
-    conn = get_connection()
+    with database_connection() as conn:
 
-    try:
         row = conn.execute(
             """
-            SELECT id
+            SELECT 1
             FROM portfolio_snapshots
             WHERE snapshot_date = ?
+            LIMIT 1
             """,
             (snapshot_date,),
         ).fetchone()
 
         return row is not None
 
-    finally:
-        conn.close()
-
 
 def asset_snapshot_exists(snapshot_date=None):
+    """Return whether asset snapshots exist for a date."""
 
-    if snapshot_date is None:
-        snapshot_date = date.today().isoformat()
+    snapshot_date = _normalize_date(snapshot_date)
 
-    conn = get_connection()
+    with database_connection() as conn:
 
-    try:
         row = conn.execute(
             """
-            SELECT COUNT(*)
+            SELECT 1
             FROM asset_snapshots
             WHERE snapshot_date = ?
+            LIMIT 1
             """,
             (snapshot_date,),
         ).fetchone()
 
-        return row[0] > 0
-
-    finally:
-        conn.close()
+        return row is not None
 
 
 # =====================================================
-# Portfolio Snapshot History
+# Portfolio History
 # =====================================================
 
 def get_snapshots():
     """
-    Return portfolio snapshots in chronological order.
+    Return portfolio snapshots chronologically.
 
-    These are historical values persisted in the database.
-    They must not be recalculated from today's market prices.
+    `current_value` and `profit` are intentionally retained as
+    compatibility aliases for existing analytics/frontend code.
     """
 
-    conn = get_connection()
-
-    try:
+    with database_connection() as conn:
 
         return conn.execute(
             """
@@ -76,37 +87,38 @@ def get_snapshots():
                 id,
                 snapshot_date,
                 invested,
-                current_value,
-                profit,
+
+                current AS current_value,
+
+                realized_pl,
+                unrealized_pl,
+                total_pl AS profit,
+
                 return_pct,
                 brokerage,
                 dividend,
                 bonus,
                 created_at
+
             FROM portfolio_snapshots
+
             ORDER BY snapshot_date
             """
         ).fetchall()
 
-    finally:
-        conn.close()
-
 
 # =====================================================
-# Asset Snapshot History
+# Asset History
 # =====================================================
 
 def get_asset_snapshots(asset_id=None):
     """
     Return historical asset snapshots.
 
-    If asset_id is supplied, only that asset's history is returned.
-    Otherwise all asset snapshots are returned.
+    When asset_id is supplied, only that asset's history is returned.
     """
 
-    conn = get_connection()
-
-    try:
+    with database_connection() as conn:
 
         if asset_id is None:
 
@@ -121,10 +133,16 @@ def get_asset_snapshots(asset_id=None):
                     market_price,
                     invested,
                     current,
-                    profit,
+
+                    realized_pl,
+                    unrealized_pl,
+                    total_pl AS profit,
+
                     allocation,
                     created_at
+
                 FROM asset_snapshots
+
                 ORDER BY
                     snapshot_date,
                     asset_id
@@ -142,52 +160,61 @@ def get_asset_snapshots(asset_id=None):
                 market_price,
                 invested,
                 current,
-                profit,
+
+                realized_pl,
+                unrealized_pl,
+                total_pl AS profit,
+
                 allocation,
                 created_at
+
             FROM asset_snapshots
+
             WHERE asset_id = ?
+
             ORDER BY snapshot_date
             """,
             (asset_id,),
         ).fetchall()
 
-    finally:
-        conn.close()
-
 
 # =====================================================
-# Save Daily Snapshot
+# Save Snapshot
 # =====================================================
 
 def save_snapshot(snapshot_date=None):
     """
-    Persist one portfolio snapshot for the supplied date.
+    Persist a portfolio snapshot and its asset snapshots.
 
-    Existing snapshots are intentionally never overwritten.
-    Historical snapshots must remain historical.
+    Snapshot creation is atomic:
+    either the portfolio and all asset snapshots are persisted,
+    or none of them are.
     """
 
-    today = (
-        snapshot_date
-        if snapshot_date is not None
-        else date.today().isoformat()
-    )
+    snapshot_date = _normalize_date(snapshot_date)
 
     portfolio = get_portfolio()
 
     summary = portfolio["summary"]
     holdings = portfolio["holdings"]
 
-    conn = get_connection()
-
-    try:
+    with database_connection() as conn:
 
         # -------------------------------------------------
         # Portfolio Snapshot
         # -------------------------------------------------
 
-        if not snapshot_exists(today):
+        portfolio_exists = conn.execute(
+            """
+            SELECT 1
+            FROM portfolio_snapshots
+            WHERE snapshot_date = ?
+            LIMIT 1
+            """,
+            (snapshot_date,),
+        ).fetchone()
+
+        if portfolio_exists is None:
 
             conn.execute(
                 """
@@ -195,19 +222,23 @@ def save_snapshot(snapshot_date=None):
                 (
                     snapshot_date,
                     invested,
-                    current_value,
-                    profit,
+                    current,
+                    realized_pl,
+                    unrealized_pl,
+                    total_pl,
                     return_pct,
                     brokerage,
                     dividend,
                     bonus
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    today,
+                    snapshot_date,
                     summary["invested"],
                     summary["current"],
+                    summary["realized_pl"],
+                    summary["unrealized_pl"],
                     summary["total_pl"],
                     summary["return_pct"],
                     summary["brokerage"],
@@ -220,7 +251,17 @@ def save_snapshot(snapshot_date=None):
         # Asset Snapshots
         # -------------------------------------------------
 
-        if not asset_snapshot_exists(today):
+        asset_exists = conn.execute(
+            """
+            SELECT 1
+            FROM asset_snapshots
+            WHERE snapshot_date = ?
+            LIMIT 1
+            """,
+            (snapshot_date,),
+        ).fetchone()
+
+        if asset_exists is None:
 
             for holding in holdings:
 
@@ -235,31 +276,24 @@ def save_snapshot(snapshot_date=None):
                         market_price,
                         invested,
                         current,
-                        profit,
+                        realized_pl,
+                        unrealized_pl,
+                        total_pl,
                         allocation
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        today,
+                        snapshot_date,
                         holding["asset_id"],
                         holding["qty"],
                         holding["avg"],
                         holding["current_price"],
                         holding["invested"],
                         holding["current"],
+                        holding["realized_pl"],
                         holding["unrealized_pl"],
+                        holding["total_pl"],
                         holding["allocation"],
                     ),
                 )
-
-        conn.commit()
-
-    except Exception:
-
-        conn.rollback()
-        raise
-
-    finally:
-
-        conn.close()

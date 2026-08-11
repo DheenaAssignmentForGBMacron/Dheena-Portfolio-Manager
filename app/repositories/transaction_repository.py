@@ -1,15 +1,31 @@
+"""
+Transaction repository.
+
+Owns persistence operations for portfolio transactions.
+
+Database connection creation remains owned by app.database.
+The local get_connection import is intentionally retained as a
+backward-compatible seam for existing tests and callers that patch
+app.repositories.transaction_repository.get_connection.
+"""
+
 from contextlib import contextmanager
 
+from app.database import database_connection
 from app.database import get_connection
 
 
 @contextmanager
-def database_connection():
+def _repository_connection():
     """
-    Backward-compatible repository connection wrapper.
+    Provide a repository connection while preserving backward
+    compatibility with callers that patch this module's
+    get_connection.
 
-    Keeps get_connection patchable by the existing test suite while
-    providing automatic commit, rollback, and close behavior.
+    New application code should use app.database.database_connection
+    directly. This adapter exists only at the repository boundary so
+    existing tests and integrations can continue patching
+    transaction_repository.get_connection.
     """
 
     conn = get_connection()
@@ -39,7 +55,7 @@ def add_transaction(
     transaction_date,
     notes,
 ):
-    with database_connection() as conn:
+    with _repository_connection() as conn:
         cursor = conn.execute(
             """
             INSERT INTO transactions
@@ -77,7 +93,7 @@ def add_transaction(
 
 
 def get_transactions():
-    with database_connection() as conn:
+    with _repository_connection() as conn:
         return conn.execute(
             """
             SELECT
@@ -95,7 +111,7 @@ def get_transactions():
 
 
 def get_transaction(transaction_id):
-    with database_connection() as conn:
+    with _repository_connection() as conn:
         return conn.execute(
             """
             SELECT *
@@ -107,7 +123,7 @@ def get_transaction(transaction_id):
 
 
 def get_asset_transactions(asset_id):
-    with database_connection() as conn:
+    with _repository_connection() as conn:
         return conn.execute(
             """
             SELECT
@@ -127,7 +143,7 @@ def get_asset_transactions(asset_id):
 
 
 def get_transactions_with_assets():
-    with database_connection() as conn:
+    with _repository_connection() as conn:
         return conn.execute(
             """
             SELECT
@@ -159,7 +175,7 @@ def update_transaction(
     transaction_date,
     notes,
 ):
-    with database_connection() as conn:
+    with _repository_connection() as conn:
         cursor = conn.execute(
             """
             UPDATE transactions
@@ -197,7 +213,7 @@ def update_transaction(
 
 
 def delete_transaction(transaction_id):
-    with database_connection() as conn:
+    with _repository_connection() as conn:
         cursor = conn.execute(
             """
             DELETE
