@@ -651,7 +651,7 @@ class PortfolioEngineTests(unittest.TestCase):
 
         result = PortfolioEngine().process()
 
-        holding = result["holdings"][1]
+        holding = result["historical_holdings"][1]
         summary = result["summary"]
 
         # Current position is closed.

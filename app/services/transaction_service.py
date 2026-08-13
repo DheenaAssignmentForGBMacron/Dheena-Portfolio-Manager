@@ -4,11 +4,11 @@ Transaction Service
 Application service responsible for:
 
 - Validating transaction input.
-- Delegating transaction persistence to the repository.
-- Invalidating the portfolio cache after mutations.
+- Delegating persistence to the repository.
+- Invalidating portfolio state after successful mutations.
 
-This service contains transaction business rules but no
-database or Flask-specific logic.
+This layer owns transaction business rules.
+It contains no Flask or database implementation details.
 """
 
 from datetime import datetime
@@ -25,24 +25,16 @@ from app.repositories.transaction_repository import (
 from app.services.portfolio_service import invalidate_portfolio
 
 
-# =====================================================
-# Transaction Types
-# =====================================================
-
-VALID_TRANSACTION_TYPES = {
+VALID_TRANSACTION_TYPES = frozenset({
     "BUY",
     "SELL",
     "DIVIDEND",
     "BONUS",
-}
+})
 
-
-# =====================================================
-# Validation Helpers
-# =====================================================
 
 def _validate_transaction_type(transaction_type):
-    """Validate that the transaction type is supported."""
+    """Validate transaction type."""
 
     if transaction_type not in VALID_TRANSACTION_TYPES:
         raise ValueError(
@@ -50,8 +42,29 @@ def _validate_transaction_type(transaction_type):
         )
 
 
+def _validate_numeric(value, field_name):
+    """Ensure a financial input is numeric."""
+
+    if value is None:
+        raise ValueError(
+            f"{field_name} is required."
+        )
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"{field_name} must be numeric."
+        )
+
+
 def _validate_brokerage(brokerage):
-    """Validate common brokerage rules."""
+    """Validate brokerage."""
+
+    brokerage = _validate_numeric(
+        brokerage,
+        "Brokerage",
+    )
 
     if brokerage < 0:
         raise ValueError(
@@ -65,7 +78,27 @@ def _validate_trade_transaction(
     dividend,
     bonus,
 ):
-    """Validate BUY and SELL transaction fields."""
+    """Validate BUY and SELL transactions."""
+
+    quantity = _validate_numeric(
+        quantity,
+        "Quantity",
+    )
+
+    price = _validate_numeric(
+        price,
+        "Price",
+    )
+
+    dividend = _validate_numeric(
+        dividend,
+        "Dividend",
+    )
+
+    bonus = _validate_numeric(
+        bonus,
+        "Bonus",
+    )
 
     if quantity <= 0:
         raise ValueError(
@@ -94,7 +127,27 @@ def _validate_dividend_transaction(
     dividend,
     bonus,
 ):
-    """Validate DIVIDEND transaction fields."""
+    """Validate DIVIDEND transactions."""
+
+    quantity = _validate_numeric(
+        quantity,
+        "Quantity",
+    )
+
+    price = _validate_numeric(
+        price,
+        "Price",
+    )
+
+    dividend = _validate_numeric(
+        dividend,
+        "Dividend",
+    )
+
+    bonus = _validate_numeric(
+        bonus,
+        "Bonus",
+    )
 
     if dividend <= 0:
         raise ValueError(
@@ -123,7 +176,27 @@ def _validate_bonus_transaction(
     dividend,
     bonus,
 ):
-    """Validate BONUS transaction fields."""
+    """Validate BONUS transactions."""
+
+    quantity = _validate_numeric(
+        quantity,
+        "Quantity",
+    )
+
+    price = _validate_numeric(
+        price,
+        "Price",
+    )
+
+    dividend = _validate_numeric(
+        dividend,
+        "Dividend",
+    )
+
+    bonus = _validate_numeric(
+        bonus,
+        "Bonus",
+    )
 
     if bonus <= 0:
         raise ValueError(
@@ -147,14 +220,13 @@ def _validate_bonus_transaction(
 
 
 def _validate_transaction_date(transaction_date):
-    """Validate transaction date format."""
+    """Validate YYYY-MM-DD transaction date."""
 
     try:
         datetime.strptime(
             transaction_date,
             "%Y-%m-%d",
         )
-
     except (TypeError, ValueError):
         raise ValueError(
             "Transaction date must be a valid date in YYYY-MM-DD format."
@@ -170,12 +242,7 @@ def _validate_transaction(
     bonus,
     transaction_date,
 ):
-    """
-    Validate a transaction according to its transaction type.
-
-    The service validates the transaction before it reaches
-    the repository, ensuring invalid data is never persisted.
-    """
+    """Validate a transaction according to its type."""
 
     _validate_transaction_type(
         transaction_type
@@ -186,40 +253,33 @@ def _validate_transaction(
     )
 
     if transaction_type in {"BUY", "SELL"}:
-
         _validate_trade_transaction(
-            quantity=quantity,
-            price=price,
-            dividend=dividend,
-            bonus=bonus,
+            quantity,
+            price,
+            dividend,
+            bonus,
         )
 
     elif transaction_type == "DIVIDEND":
-
         _validate_dividend_transaction(
-            quantity=quantity,
-            price=price,
-            dividend=dividend,
-            bonus=bonus,
+            quantity,
+            price,
+            dividend,
+            bonus,
         )
 
     elif transaction_type == "BONUS":
-
         _validate_bonus_transaction(
-            quantity=quantity,
-            price=price,
-            dividend=dividend,
-            bonus=bonus,
+            quantity,
+            price,
+            dividend,
+            bonus,
         )
 
     _validate_transaction_date(
         transaction_date
     )
 
-
-# =====================================================
-# Create
-# =====================================================
 
 def add_transaction(
     asset,
@@ -234,21 +294,16 @@ def add_transaction(
     transaction_date,
     notes,
 ):
-    """
-    Validate and create a transaction.
-
-    Portfolio cache is invalidated after a successful
-    repository mutation.
-    """
+    """Validate and create a transaction."""
 
     _validate_transaction(
-        transaction_type=transaction_type,
-        quantity=quantity,
-        price=price,
-        brokerage=brokerage,
-        dividend=dividend,
-        bonus=bonus,
-        transaction_date=transaction_date,
+        transaction_type,
+        quantity,
+        price,
+        brokerage,
+        dividend,
+        bonus,
+        transaction_date,
     )
 
     result = repo_add_transaction(
@@ -270,10 +325,6 @@ def add_transaction(
     return result
 
 
-# =====================================================
-# Read
-# =====================================================
-
 def get_transactions():
     """Return all transactions."""
 
@@ -289,16 +340,12 @@ def get_transaction(transaction_id):
 
 
 def get_asset_transactions(asset_id):
-    """Return all transactions for an asset."""
+    """Return transactions belonging to an asset."""
 
     return repo_get_asset_transactions(
         asset_id
     )
 
-
-# =====================================================
-# Update
-# =====================================================
 
 def update_transaction(
     transaction_id,
@@ -314,21 +361,16 @@ def update_transaction(
     transaction_date,
     notes,
 ):
-    """
-    Validate and update a transaction.
-
-    Portfolio cache is invalidated after a successful
-    repository mutation.
-    """
+    """Validate and update a transaction."""
 
     _validate_transaction(
-        transaction_type=transaction_type,
-        quantity=quantity,
-        price=price,
-        brokerage=brokerage,
-        dividend=dividend,
-        bonus=bonus,
-        transaction_date=transaction_date,
+        transaction_type,
+        quantity,
+        price,
+        brokerage,
+        dividend,
+        bonus,
+        transaction_date,
     )
 
     result = repo_update_transaction(
@@ -346,24 +388,20 @@ def update_transaction(
         notes,
     )
 
-    invalidate_portfolio()
+    if result:
+        invalidate_portfolio()
 
     return result
 
 
-# =====================================================
-# Delete
-# =====================================================
-
 def delete_transaction(transaction_id):
-    """
-    Delete a transaction and invalidate the portfolio cache.
-    """
+    """Delete a transaction."""
 
     result = repo_delete_transaction(
         transaction_id
     )
 
-    invalidate_portfolio()
+    if result:
+        invalidate_portfolio()
 
     return result
